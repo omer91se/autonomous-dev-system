@@ -57,7 +57,16 @@ Orchestrator presents checkpoints for human approval
    npm install
    ```
 
-That's it! No API keys, no configuration needed.
+3. **Configure Shared Infrastructure (One-Time):**
+   ```bash
+   node scripts/setup-infrastructure.js
+   ```
+
+   This sets up database, AWS S3, Stripe, email once - all generated projects will use it!
+
+   See [INFRASTRUCTURE_SETUP.md](./INFRASTRUCTURE_SETUP.md) for details.
+
+That's it! No API keys for Claude needed.
 
 ## Usage
 
@@ -85,6 +94,8 @@ npm run dev
 - 📁 Live file tree as code generates
 
 The `/build-app` command automatically detects the UI is running and uses it!
+
+**👀 Where to see updates?** See [WHERE_TO_SEE_UPDATES.md](WHERE_TO_SEE_UPDATES.md) for visual guide showing exactly where updates appear.
 
 **💡 Port 3000 taken?** No problem! See [PORT_CONFIGURATION.md](PORT_CONFIGURATION.md) for using custom ports.
 
@@ -154,19 +165,54 @@ Located in `./agents/` directory:
 - **coding-agent-prompt.md**: Implements the complete application
 - (More agents to be added: design, testing, deployment)
 
+## 🚀 NEW: Shared Infrastructure
+
+All generated projects now use **shared infrastructure**:
+
+- **One PostgreSQL instance** - Each project gets its own database
+- **One S3 bucket** - Files organized by project prefix
+- **One Stripe account** - Separate products per project
+- **One email service** - Shared across all projects
+
+### Why?
+
+Instead of creating new AWS accounts, databases, and services for every project:
+- ✅ Configure once, use forever
+- ✅ No duplicate services
+- ✅ Lower costs (shared resources)
+- ✅ Faster project generation
+- ✅ Consistent setup
+
+### How It Works
+
+1. Run `node scripts/setup-infrastructure.js` once
+2. Fill in `.env.shared` with your credentials
+3. Generate apps with `/build-app`
+4. Each app automatically gets:
+   - Dedicated database: `project_name`
+   - S3 prefix: `project-name/`
+   - Pre-configured `.env` with shared credentials
+
+See [INFRASTRUCTURE_SETUP.md](./INFRASTRUCTURE_SETUP.md) for full guide.
+
 ## Project Structure
 
 ```
 autonomous-dev-system/
-├── orchestrate.ts           # Main orchestrator script
-├── agents/                  # Agent prompt templates
+├── orchestrate.ts              # Main orchestrator script
+├── agents/                     # Agent prompt templates
 │   ├── requirements-agent-prompt.md
 │   └── coding-agent-prompt.md
-├── output/                  # Generated outputs
-│   ├── project-state.json  # Workflow state
-│   ├── requirements.json   # Generated requirements
-│   ├── implementation.json # Implementation summary
-│   └── generated-project/  # Your generated app!
+├── scripts/                    # Helper scripts
+│   ├── setup-infrastructure.js # Infrastructure setup wizard
+│   └── create-project-db.js   # Auto-create project databases
+├── output/                     # Generated outputs
+│   ├── project-state.json     # Workflow state
+│   ├── requirements.json      # Generated requirements
+│   ├── implementation.json    # Implementation summary
+│   └── generated-project/     # Your generated app!
+├── .env.shared                # Shared credentials (create this)
+├── shared-infrastructure.json # Project registry
 └── package.json
 ```
 

@@ -50,3 +50,4 @@ output/
 .cache/
 state/*.json
 !state/.gitkeep
+.env.shared

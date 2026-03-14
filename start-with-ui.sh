@@ -85,6 +85,25 @@ else
         echo "📊 Dashboard: http://localhost:$UI_PORT"
         echo "🔌 WebSocket: ws://localhost:$WS_PORT"
         echo ""
+
+        # Open Chrome automatically (unless NO_BROWSER is set)
+        if [ -z "$NO_BROWSER" ]; then
+            echo "🌐 Opening Chrome browser..."
+            if command -v open &> /dev/null; then
+                # macOS
+                open -a "Google Chrome" "http://localhost:$UI_PORT" 2>/dev/null || \
+                open "http://localhost:$UI_PORT"
+            elif command -v google-chrome &> /dev/null; then
+                # Linux
+                google-chrome "http://localhost:$UI_PORT" &
+            else
+                echo "⚠️  Could not auto-open Chrome. Please open http://localhost:$UI_PORT manually."
+            fi
+            echo ""
+        else
+            echo "ℹ️  Auto-open disabled. Please open http://localhost:$UI_PORT manually."
+            echo ""
+        fi
     else
         echo "❌ Failed to start UI on port $UI_PORT. Check ui.log for errors."
         echo "💡 Tip: Port might be taken. Try: ./start-with-ui.sh \"$APP_IDEA\" 3002 3003"
@@ -97,8 +116,8 @@ echo "════════════════════════�
 echo "🤖 Starting Autonomous Build Process"
 echo "═══════════════════════════════════════════════════════════════════════════"
 echo ""
-echo "👀 WATCH THE MAGIC HAPPEN:"
-echo "   Open http://localhost:$UI_PORT in your browser!"
+echo "👀 WATCH THE MAGIC HAPPEN IN CHROME!"
+echo "   Dashboard opened at: http://localhost:$UI_PORT"
 echo ""
 echo "Press Ctrl+C to stop"
 echo ""

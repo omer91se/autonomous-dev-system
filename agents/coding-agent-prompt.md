@@ -25,18 +25,40 @@ Based on the stack, you will create:
 - **react-node-postgres**: React frontend + Node.js/Express backend + PostgreSQL
 - **react-node-mongodb**: React frontend + Node.js/Express backend + MongoDB
 
+## Shared Infrastructure
+
+**IMPORTANT**: This system uses shared infrastructure to avoid setting up AWS, databases, Stripe, etc. for every project.
+
+1. **Read Shared Config**: Check `~/projects/autonomous-dev-system/.env.shared` for existing credentials
+2. **Auto-Create Infrastructure**: Run the infrastructure creation script:
+   - Database name: Convert project name to snake_case (e.g., "FormFit Coach" → "formfit_coach")
+   - S3 bucket name: Convert to kebab-case with suffix (e.g., "formfit-coach-uploads")
+   - Script handles creation and registration automatically
+3. **Database Strategy**: Each project gets its own database within the shared PostgreSQL instance
+4. **S3 Strategy**: Each project gets its own dedicated S3 bucket (auto-created)
+   - Better isolation and security
+   - Easier to manage and cleanup
+5. **Other Services**: Reuse shared Stripe, email, OAuth credentials
+6. **Automatic Registration**: Infrastructure script updates `shared-infrastructure.json`
+
 ## Process
 
-1. **Read Requirements**: Parse `output/requirements.json`
-2. **Create Project Structure**: Set up proper directory structure
-3. **Initialize Project**: package.json, tsconfig.json, etc.
-4. **Implement Authentication**: Secure auth system
-5. **Implement Database**: Schema, migrations, models
-6. **Implement Backend**: API routes, business logic
-7. **Implement Frontend**: Components, pages, routing
-8. **Add Configuration**: Environment variables, config files
-9. **Create Documentation**: README, setup instructions
-10. **Record Implementation**: Write implementation summary
+1. **Read Shared Infrastructure**: Parse `~/projects/autonomous-dev-system/.env.shared` and `shared-infrastructure.json`
+2. **Read Requirements**: Parse `output/requirements.json`
+3. **Create Project Infrastructure**: Run `node ~/projects/autonomous-dev-system/scripts/create-project-db.js "{ProjectName}"` to:
+   - Create database: `project_name`
+   - Create S3 bucket: `project-name-uploads`
+   - Register project in shared infrastructure
+4. **Create Project Structure**: Set up proper directory structure
+5. **Initialize Project**: package.json, tsconfig.json, etc.
+6. **Generate .env**: Create .env.example using shared credentials with project-specific DB and bucket
+7. **Implement Authentication**: Secure auth system
+8. **Implement Database**: Schema, migrations, models (new DB in shared instance)
+9. **Implement Backend**: API routes, business logic
+10. **Implement Frontend**: Components, pages, routing
+11. **Add Configuration**: Environment variables, config files
+12. **Create Documentation**: README, setup instructions
+13. **Record Implementation**: Write implementation summary
 
 ## Output Structure
 
@@ -106,7 +128,10 @@ output/generated-project/
 - [ ] Error handling
 
 ### 5. Configuration
-- [ ] Environment variables
+- [ ] Read shared infrastructure credentials from .env.shared
+- [ ] Run infrastructure creation script (creates DB + S3 bucket)
+- [ ] Get project-specific infrastructure details from script output
+- [ ] Create .env.example with shared credentials + project DB + project bucket
 - [ ] TypeScript configuration
 - [ ] ESLint and Prettier
 - [ ] Package.json scripts
@@ -157,6 +182,10 @@ After completing the implementation, create `output/implementation.json`:
 
 ## Important Notes
 
+- **Shared Infrastructure**: Always read `.env.shared` first to reuse existing credentials
+- **Database Naming**: Project database = project_name in snake_case
+- **S3 Prefix**: Use `{project-name}/` prefix in shared bucket
+- **Register Project**: Update `shared-infrastructure.json` with new project details
 - Create all directories as needed
 - Use TypeScript throughout
 - Follow Next.js 14+ App Router conventions (if Next.js)
@@ -164,6 +193,20 @@ After completing the implementation, create `output/implementation.json`:
 - Implement proper error boundaries
 - Add loading skeletons for better UX
 - Use environment variables for sensitive data
+
+## Infrastructure Setup Example
+
+For a project named "FormFit Coach":
+- Database name: `formfit_coach`
+- S3 Bucket: `formfit-coach-uploads`
+- Full DB connection: `postgresql://postgres:password@localhost:5432/formfit_coach`
+- S3 bucket region: Same as AWS_REGION in .env.shared
+
+The infrastructure script automatically:
+1. Creates the database
+2. Creates the S3 bucket with CORS configuration
+3. Registers the project in `shared-infrastructure.json`
+4. Returns connection details for use in .env.example
 
 ## Tools Available
 

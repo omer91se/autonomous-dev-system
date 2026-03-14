@@ -17,6 +17,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "next-auth": "^4.24.13",
     "uuid": "^13.0.0"
   },
   "devDependencies": {

@@ -1,0 +1,156 @@
+{
+  "description": "Shared infrastructure configuration for all generated projects",
+  "version": "1.0.0",
+  "lastUpdated": "2026-03-14",
+
+  "database": {
+    "provider": "postgresql",
+    "host": "localhost",
+    "port": 5432,
+    "username": "postgres",
+    "password": "postgres",
+    "connectionString": "postgresql://postgres:postgres@localhost:5432",
+    "notes": [
+      "Each project gets its own database/schema within this PostgreSQL instance",
+      "Database name format: project_name_snake_case",
+      "Example: formfit_coach, task_manager, etc."
+    ],
+    "cloudAlternatives": {
+      "supabase": {
+        "connectionString": "postgresql://postgres:[PASSWORD]@[PROJECT].supabase.co:5432/postgres",
+        "notes": "Free tier includes 500MB database, automatic backups"
+      },
+      "railway": {
+        "connectionString": "postgresql://postgres:[PASSWORD]@[HOST].railway.app:5432/railway",
+        "notes": "Free trial $5 credit, then pay-as-you-go"
+      }
+    }
+  },
+
+  "storage": {
+    "provider": "aws-s3",
+    "region": "us-east-1",
+    "accessKeyId": "YOUR_AWS_ACCESS_KEY_ID",
+    "secretAccessKey": "YOUR_AWS_SECRET_ACCESS_KEY",
+    "bucketNamingStrategy": "per-project-bucket",
+    "bucketNameFormat": "{project-name}-uploads",
+    "notes": [
+      "Each project gets its own S3 bucket",
+      "Buckets are auto-created by the system",
+      "Format: {project-name}-uploads (e.g., formfit-coach-uploads)",
+      "Better isolation and security per project",
+      "Easier to manage permissions and cleanup"
+    ],
+    "alternatives": {
+      "cloudinary": {
+        "cloudName": "YOUR_CLOUD_NAME",
+        "apiKey": "YOUR_API_KEY",
+        "apiSecret": "YOUR_API_SECRET",
+        "notes": "Free tier: 25GB storage, 25GB bandwidth/month, good for images/videos"
+      }
+    }
+  },
+
+  "authentication": {
+    "provider": "nextauth",
+    "secretGeneration": "openssl rand -base64 32",
+    "sharedSecret": "GENERATE_ONE_SECRET_FOR_LOCAL_DEV",
+    "notes": [
+      "Each project uses the same NextAuth setup for consistency",
+      "In production, each project should have its own NEXTAUTH_SECRET",
+      "For local dev, can share the same secret across projects"
+    ],
+    "oauth": {
+      "google": {
+        "clientId": "YOUR_GOOGLE_CLIENT_ID",
+        "clientSecret": "YOUR_GOOGLE_CLIENT_SECRET",
+        "notes": "Set up once in Google Cloud Console, add redirect URIs per project"
+      },
+      "github": {
+        "clientId": "YOUR_GITHUB_CLIENT_ID",
+        "clientSecret": "YOUR_GITHUB_CLIENT_SECRET",
+        "notes": "Set up once in GitHub Developer Settings"
+      }
+    }
+  },
+
+  "payments": {
+    "provider": "stripe",
+    "testMode": {
+      "secretKey": "sk_test_YOUR_STRIPE_TEST_KEY",
+      "publishableKey": "pk_test_YOUR_STRIPE_TEST_KEY",
+      "webhookSecret": "whsec_YOUR_WEBHOOK_SECRET"
+    },
+    "productionMode": {
+      "secretKey": "sk_live_YOUR_STRIPE_LIVE_KEY",
+      "publishableKey": "pk_live_YOUR_STRIPE_LIVE_KEY",
+      "webhookSecret": "whsec_YOUR_WEBHOOK_SECRET"
+    },
+    "notes": [
+      "Use test mode for all development",
+      "Each project can use the same Stripe account",
+      "Create separate products/prices per project in Stripe dashboard"
+    ]
+  },
+
+  "email": {
+    "provider": "sendgrid",
+    "apiKey": "YOUR_SENDGRID_API_KEY",
+    "fromEmail": "noreply@yourdomain.com",
+    "fromName": "Your Company",
+    "notes": [
+      "Free tier: 100 emails/day",
+      "All projects share the same SendGrid account",
+      "Use different 'from' names per project if needed"
+    ],
+    "alternatives": {
+      "resend": {
+        "apiKey": "re_YOUR_RESEND_API_KEY",
+        "notes": "Free tier: 100 emails/day, modern API, recommended"
+      },
+      "gmail": {
+        "host": "smtp.gmail.com",
+        "port": 587,
+        "user": "your-email@gmail.com",
+        "password": "YOUR_APP_PASSWORD",
+        "notes": "For testing only, not production"
+      },
+      "mailtrap": {
+        "host": "smtp.mailtrap.io",
+        "port": 2525,
+        "user": "YOUR_MAILTRAP_USER",
+        "password": "YOUR_MAILTRAP_PASSWORD",
+        "notes": "Testing only - captures emails without sending"
+      }
+    }
+  },
+
+  "projects": [
+    {
+      "name": "formfit-coach",
+      "database": "formfit_coach",
+      "s3Bucket": "formfit-coach-uploads",
+      "s3Region": "us-east-1",
+      "createdAt": "2026-03-14",
+      "status": "active"
+    }
+  ],
+
+  "setupInstructions": {
+    "firstTime": [
+      "1. Set up PostgreSQL (local or cloud)",
+      "2. Create AWS account and S3 bucket",
+      "3. Create Stripe account (test mode)",
+      "4. Create SendGrid/Resend account",
+      "5. Fill in this file with your credentials",
+      "6. Run: node scripts/setup-infrastructure.js"
+    ],
+    "perProject": [
+      "The coding agent will automatically:",
+      "1. Create new database with project name",
+      "2. Use shared S3 bucket with project prefix",
+      "3. Generate .env file with shared credentials",
+      "4. Register project in this config file"
+    ]
+  }
+}
