@@ -61,50 +61,71 @@ That's it! No API keys, no configuration needed.
 
 ## Usage
 
-### ⚡ The Simplest Way: Slash Command (Recommended)
+### 🎨 The Best Way: Slash Command + Visual Dashboard (Recommended!)
 
-Just type:
+**Step 1:** Start the UI dashboard (in one terminal):
+```bash
+cd ui
+npm install  # First time only
+npm run dev
+```
+
+**Step 2:** Open http://localhost:3000 in your browser
+
+**Step 3:** Use the `/build-app` command (in Claude Code):
+```
+/build-app A simple todo list with priorities and due dates
+```
+
+**That's it!** You'll see:
+- ✨ Real-time pipeline visualization
+- 🤖 Agent activity with progress bars
+- 📝 Streaming logs
+- ✅ Beautiful checkpoint modals in the browser
+- 📁 Live file tree as code generates
+
+The `/build-app` command automatically detects the UI is running and uses it!
+
+### ⚡ Alternative: Slash Command Only (No UI)
+
+If you don't want the visual dashboard, just run:
 
 ```
 /build-app A simple todo list with priorities and due dates
 ```
 
-**That's it!** The system automatically:
-1. ✅ Analyzes your idea
-2. ✅ Generates requirements → You approve
-3. ✅ Builds complete application → You approve
-4. ✅ Delivers production-ready code
+Everything works in the terminal. You'll get text-based checkpoints.
 
 **See [USAGE.md](USAGE.md) for detailed examples and guidance.**
 
-### 🎨 Option 2: With Visual Dashboard (Recommended!)
+### 🚀 Option 3: One-Command Launcher
 
-Experience the development process with a beautiful real-time dashboard:
+Use the helper script that auto-starts the UI:
 
-1. **Start the UI:**
-   ```bash
-   cd ui
-   npm install  # First time only
-   npm run dev
-   ```
+```bash
+./start-with-ui.sh "Your app idea here"
+```
 
-2. **Open the dashboard:**
-   - Visit http://localhost:3000
-   - WebSocket server runs on ws://localhost:3001
+This automatically:
+1. Checks if UI is running (starts it if not)
+2. Opens the connection
+3. Runs the orchestrator
+4. Shows everything in the dashboard
 
-3. **Run the orchestrator:**
-   ```bash
-   tsx orchestrate-ui.ts "Your app idea"
-   ```
+**Manual control with visual feedback:**
 
-4. **Watch the magic happen:**
-   - See pipeline progress in real-time
-   - Monitor agent activity with live updates
-   - Review checkpoints in beautiful modals
-   - Preview generated code instantly
-   - Track everything in the activity log
+1. Start UI: `cd ui && npm run dev`
+2. Run: `tsx orchestrate-ui.ts "Your app idea"`
+3. Watch at http://localhost:3000
 
-### Option 3: Manual Orchestration
+**Watch the magic happen:**
+- See pipeline progress in real-time
+- Monitor agent activity with live updates
+- Review checkpoints in beautiful modals
+- Preview generated code instantly
+- Track everything in the activity log
+
+### Option 5: Manual Orchestration (CLI only)
 
 If you want more control:
 
