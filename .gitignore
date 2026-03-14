@@ -43,6 +43,8 @@ temp/
 # Generated projects (for testing)
 generated-projects/
 test-projects/
+output/
+!output/README.md
 
 # State and cache
 .cache/

@@ -2,6 +2,22 @@
 
 An autonomous web/mobile app development system powered entirely by Claude Code agents. No API keys needed!
 
+## 🎨 NEW: Visual Dashboard
+
+The system now includes a beautiful real-time dashboard for monitoring and controlling the development process!
+
+![Dashboard Features](ui/screenshot.png)
+
+**Features:**
+- 📊 Real-time pipeline visualization with animated progress
+- 🤖 Live agent activity monitoring
+- 📝 Streaming logs with syntax highlighting
+- 📁 Interactive file tree with code preview
+- ✅ Beautiful checkpoint review interface
+- 🎨 Modern UI with smooth animations
+
+[See UI Documentation →](ui/README.md)
+
 ## Architecture
 
 This system uses **Claude Code** as the execution environment:
@@ -61,7 +77,34 @@ Just type:
 
 **See [USAGE.md](USAGE.md) for detailed examples and guidance.**
 
-### Option 2: Manual Orchestration
+### 🎨 Option 2: With Visual Dashboard (Recommended!)
+
+Experience the development process with a beautiful real-time dashboard:
+
+1. **Start the UI:**
+   ```bash
+   cd ui
+   npm install  # First time only
+   npm run dev
+   ```
+
+2. **Open the dashboard:**
+   - Visit http://localhost:3000
+   - WebSocket server runs on ws://localhost:3001
+
+3. **Run the orchestrator:**
+   ```bash
+   tsx orchestrate-ui.ts "Your app idea"
+   ```
+
+4. **Watch the magic happen:**
+   - See pipeline progress in real-time
+   - Monitor agent activity with live updates
+   - Review checkpoints in beautiful modals
+   - Preview generated code instantly
+   - Track everything in the activity log
+
+### Option 3: Manual Orchestration
 
 If you want more control:
 
