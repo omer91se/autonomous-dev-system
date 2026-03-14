@@ -1,0 +1,1423 @@
+openapi: 3.0.0
+info:
+  title: FormFit Coach API
+  description: |
+    RESTful API for FormFit Coach platform - connecting fitness enthusiasts with expert trainers for personalized video form analysis.
+
+    ## Authentication
+    All authenticated endpoints require either:
+    - Session cookie (for web app)
+    - JWT token in Authorization header: `Bearer <token>`
+
+    ## Rate Limiting
+    Rate limits vary by endpoint and authentication status. Limits are returned in headers:
+    - `X-RateLimit-Limit`: Maximum requests allowed
+    - `X-RateLimit-Remaining`: Requests remaining
+    - `X-RateLimit-Reset`: Unix timestamp when limit resets
+
+    ## Versioning
+    API is versioned via URL path (e.g., /api/v1/). Version v1 is current stable version.
+
+  version: 1.0.0
+  contact:
+    name: FormFit Coach API Support
+    email: api-support@formfit.com
+
+servers:
+  - url: https://formfit.com/api/v1
+    description: Production server
+  - url: https://staging.formfit.com/api/v1
+    description: Staging server
+  - url: http://localhost:3000/api/v1
+    description: Local development
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization endpoints
+  - name: Users
+    description: User profile and settings management
+  - name: Videos
+    description: Video upload and management
+  - name: Trainers
+    description: Trainer profiles and listings
+  - name: Feedback
+    description: Trainer feedback and reviews
+  - name: Comments
+    description: Timestamped video comments
+  - name: Credits
+    description: Credit purchase and management
+  - name: Notifications
+    description: User notifications
+  - name: Admin
+    description: Administrative endpoints
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: next-auth.session-token
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          example: clp123abc456
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        name:
+          type: string
+          example: John Doe
+        role:
+          type: string
+          enum: [USER, TRAINER, ADMIN]
+        fitnessLevel:
+          type: string
+          enum: [BEGINNER, INTERMEDIATE, ADVANCED]
+          nullable: true
+        goals:
+          type: string
+          nullable: true
+        emailVerified:
+          type: boolean
+        image:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    Trainer:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+        bio:
+          type: string
+          nullable: true
+        specialties:
+          type: array
+          items:
+            type: string
+          example: ["Powerlifting", "Olympic Weightlifting"]
+        certifications:
+          type: array
+          items:
+            type: string
+        rating:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 5
+        totalReviews:
+          type: integer
+        isVerified:
+          type: boolean
+        isActive:
+          type: boolean
+        hourlyRate:
+          type: number
+          format: float
+          nullable: true
+        avgResponseTimeHours:
+          type: number
+          format: float
+          nullable: true
+        availableHours:
+          type: object
+          nullable: true
+
+    Video:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        fileUrl:
+          type: string
+          format: uri
+        thumbnailUrl:
+          type: string
+          format: uri
+          nullable: true
+        workoutType:
+          type: string
+          example: squat
+        duration:
+          type: integer
+          description: Duration in seconds
+          nullable: true
+        fileSize:
+          type: integer
+          description: File size in bytes
+        status:
+          type: string
+          enum: [UPLOADING, PROCESSING, READY, FAILED]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Feedback:
+      type: object
+      properties:
+        id:
+          type: string
+        videoId:
+          type: string
+        trainerId:
+          type: string
+        trainer:
+          $ref: '#/components/schemas/Trainer'
+        content:
+          type: string
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          nullable: true
+        status:
+          type: string
+          enum: [PENDING, IN_PROGRESS, COMPLETED]
+        comments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Comment'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Comment:
+      type: object
+      properties:
+        id:
+          type: string
+        feedbackId:
+          type: string
+        userId:
+          type: string
+        content:
+          type: string
+        timestamp:
+          type: integer
+          description: Video timestamp in seconds
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        type:
+          type: string
+          enum: [FEEDBACK_READY, VIDEO_ASSIGNED, UPLOAD_SUCCESS, PURCHASE_COMPLETE]
+        title:
+          type: string
+        message:
+          type: string
+        link:
+          type: string
+          nullable: true
+        read:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    Purchase:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        stripeSessionId:
+          type: string
+        amount:
+          type: integer
+          description: Amount in cents
+        credits:
+          type: integer
+        status:
+          type: string
+          enum: [pending, completed, failed, refunded]
+        createdAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    TrainerReview:
+      type: object
+      properties:
+        id:
+          type: string
+        trainerId:
+          type: string
+        userId:
+          type: string
+        user:
+          type: object
+          properties:
+            name:
+              type: string
+        feedbackId:
+          type: string
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+          nullable: true
+        isVerified:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          nullable: true
+
+    PaginatedResponse:
+      type: object
+      properties:
+        nextCursor:
+          type: string
+          nullable: true
+        hasMore:
+          type: boolean
+
+paths:
+  /auth/verify-email:
+    post:
+      tags:
+        - Authentication
+      summary: Send email verification link
+      description: Sends verification email with time-limited token to user's email address
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Verification email sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  expiresIn:
+                    type: integer
+                    description: Token expiration time in seconds
+        '429':
+          description: Rate limit exceeded (max 3 per hour)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/verify/{token}:
+    get:
+      tags:
+        - Authentication
+      summary: Verify email address
+      description: Verifies email using token from verification email
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Email verified successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  redirect:
+                    type: string
+                    nullable: true
+        '400':
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/forgot-password:
+    post:
+      tags:
+        - Authentication
+      summary: Request password reset
+      description: Sends password reset email with time-limited token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Password reset email sent (always returns 200 to prevent email enumeration)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/reset-password:
+    post:
+      tags:
+        - Authentication
+      summary: Reset password using token
+      description: Resets user password with token from reset email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+                - newPassword
+              properties:
+                token:
+                  type: string
+                newPassword:
+                  type: string
+                  minLength: 8
+                  description: Must contain uppercase, lowercase, number, and special character
+      responses:
+        '200':
+          description: Password reset successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '400':
+          description: Invalid token or password requirements not met
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /trainers:
+    get:
+      tags:
+        - Trainers
+      summary: List trainers with pagination and filtering
+      description: Get paginated list of trainers with optional filters and sorting
+      parameters:
+        - name: cursor
+          in: query
+          schema:
+            type: string
+          description: Cursor for pagination
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 30
+            maximum: 100
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [rating, reviews, recent]
+            default: rating
+        - name: specialty
+          in: query
+          schema:
+            type: string
+          description: Filter by specialty
+        - name: minRating
+          in: query
+          schema:
+            type: number
+            minimum: 0
+            maximum: 5
+        - name: verified
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: List of trainers
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      trainers:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Trainer'
+                      total:
+                        type: integer
+
+  /trainers/{id}/reviews:
+    get:
+      tags:
+        - Trainers
+      summary: Get trainer reviews
+      description: Retrieve paginated reviews for a specific trainer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+            maximum: 50
+      responses:
+        '200':
+          description: Trainer reviews
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      reviews:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/TrainerReview'
+                      averageRating:
+                        type: number
+                      totalReviews:
+                        type: integer
+
+    post:
+      tags:
+        - Trainers
+      summary: Submit trainer review
+      description: Submit rating and review for a trainer after receiving feedback
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - feedbackId
+                - rating
+              properties:
+                feedbackId:
+                  type: string
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                comment:
+                  type: string
+                  maxLength: 500
+      responses:
+        '201':
+          description: Review submitted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  review:
+                    $ref: '#/components/schemas/TrainerReview'
+                  trainerNewRating:
+                    type: number
+        '400':
+          description: Already reviewed or invalid feedback ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /videos:
+    get:
+      tags:
+        - Videos
+      summary: List user's videos
+      description: Get paginated list of authenticated user's videos
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 50
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [UPLOADING, PROCESSING, READY, FAILED]
+        - name: workoutType
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of videos
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      videos:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Video'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags:
+        - Videos
+      summary: Create video record
+      description: Create video database record after S3 upload
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - fileUrl
+                - workoutType
+                - fileSize
+              properties:
+                title:
+                  type: string
+                  minLength: 3
+                  maxLength: 100
+                description:
+                  type: string
+                  maxLength: 500
+                fileUrl:
+                  type: string
+                workoutType:
+                  type: string
+                fileSize:
+                  type: integer
+                duration:
+                  type: integer
+      responses:
+        '201':
+          description: Video created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Video'
+        '400':
+          description: Validation error or email not verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /videos/{id}/stream:
+    post:
+      tags:
+        - Videos
+      summary: Stream video content
+      description: Proxy video streaming with range request support
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: Range
+          in: header
+          schema:
+            type: string
+          description: Byte range for partial content (e.g., bytes=0-1023)
+      responses:
+        '206':
+          description: Partial content
+          headers:
+            Content-Range:
+              schema:
+                type: string
+              description: Byte range of response
+            Accept-Ranges:
+              schema:
+                type: string
+              description: Supported range units
+          content:
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+        '200':
+          description: Full video content
+          content:
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+        '401':
+          description: Unauthorized
+        '404':
+          description: Video not found
+
+  /feedback/{id}/comments:
+    post:
+      tags:
+        - Comments
+      summary: Add timestamped comment
+      description: Add a timestamped comment to feedback (trainer only)
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Feedback ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - timestamp
+                - comment
+              properties:
+                timestamp:
+                  type: integer
+                  description: Video timestamp in seconds
+                  minimum: 0
+                comment:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+      responses:
+        '201':
+          description: Comment added successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  comment:
+                    $ref: '#/components/schemas/Comment'
+                  totalComments:
+                    type: integer
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Not assigned trainer for this feedback
+
+  /feedback/{feedbackId}/comments/{commentId}:
+    delete:
+      tags:
+        - Comments
+      summary: Delete timestamped comment
+      description: Delete a comment (only before feedback submission)
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: feedbackId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: commentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Comment deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  remainingComments:
+                    type: integer
+        '400':
+          description: Cannot delete after feedback completed
+        '401':
+          description: Unauthorized
+        '403':
+          description: Not comment author
+
+  /credits/checkout:
+    post:
+      tags:
+        - Credits
+      summary: Create checkout session
+      description: Create Stripe Checkout session for credit package purchase
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - packageId
+              properties:
+                packageId:
+                  type: string
+                  enum: [starter, pro, expert]
+                successUrl:
+                  type: string
+                  format: uri
+                cancelUrl:
+                  type: string
+                  format: uri
+      responses:
+        '200':
+          description: Checkout session created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessionId:
+                    type: string
+                  url:
+                    type: string
+                    format: uri
+        '401':
+          description: Unauthorized
+        '429':
+          description: Rate limit exceeded (max 10 per 5 minutes)
+
+  /purchases:
+    get:
+      tags:
+        - Credits
+      summary: Get purchase history
+      description: Retrieve user's purchase history with pagination
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 50
+      responses:
+        '200':
+          description: Purchase history
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      purchases:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Purchase'
+                      totalSpent:
+                        type: integer
+                        description: Total amount spent in cents
+        '401':
+          description: Unauthorized
+
+  /notifications:
+    get:
+      tags:
+        - Notifications
+      summary: List notifications
+      description: Get user's notifications with pagination
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 50
+        - name: unreadOnly
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: List of notifications
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      notifications:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Notification'
+                      unreadCount:
+                        type: integer
+        '401':
+          description: Unauthorized
+
+  /notifications/{id}/read:
+    patch:
+      tags:
+        - Notifications
+      summary: Mark notification as read
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Notification marked as read
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  notification:
+                    $ref: '#/components/schemas/Notification'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Notification not found
+
+  /notifications/mark-all-read:
+    patch:
+      tags:
+        - Notifications
+      summary: Mark all notifications as read
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      responses:
+        '200':
+          description: All notifications marked as read
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  markedCount:
+                    type: integer
+        '401':
+          description: Unauthorized
+
+  /notifications/poll:
+    get:
+      tags:
+        - Notifications
+      summary: Poll for new notifications
+      description: Lightweight endpoint for polling notification count
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: since
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Only count notifications after this timestamp
+      responses:
+        '200':
+          description: Notification poll response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  unreadCount:
+                    type: integer
+                  hasNew:
+                    type: boolean
+                  latestNotification:
+                    $ref: '#/components/schemas/Notification'
+                    nullable: true
+        '401':
+          description: Unauthorized
+
+  /user/profile:
+    patch:
+      tags:
+        - Users
+      summary: Update user profile
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 2
+                  maxLength: 100
+                fitnessLevel:
+                  type: string
+                  enum: [BEGINNER, INTERMEDIATE, ADVANCED]
+                goals:
+                  type: string
+                  maxLength: 500
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+                  updated:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          description: Validation error
+        '401':
+          description: Unauthorized
+
+  /user/email/change:
+    post:
+      tags:
+        - Users
+      summary: Change email address
+      description: Initiate email change with verification to new address
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - newEmail
+                - password
+              properties:
+                newEmail:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Email change initiated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  verificationSent:
+                    type: boolean
+        '400':
+          description: Invalid password or email
+        '401':
+          description: Unauthorized
+        '429':
+          description: Rate limit exceeded (max 3 per hour)
+
+  /user/password:
+    patch:
+      tags:
+        - Users
+      summary: Change password
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - currentPassword
+                - newPassword
+              properties:
+                currentPassword:
+                  type: string
+                newPassword:
+                  type: string
+                  minLength: 8
+      responses:
+        '200':
+          description: Password changed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '400':
+          description: Invalid current password or password requirements not met
+        '401':
+          description: Unauthorized
+        '429':
+          description: Rate limit exceeded (max 5 per hour)
+
+  /trainer/profile:
+    patch:
+      tags:
+        - Trainers
+      summary: Update trainer profile
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bio:
+                  type: string
+                  maxLength: 500
+                specialties:
+                  type: array
+                  items:
+                    type: string
+                hourlyRate:
+                  type: number
+                  minimum: 0
+                availableHours:
+                  type: object
+                maxDailyReviews:
+                  type: integer
+                  minimum: 1
+                  maximum: 50
+      responses:
+        '200':
+          description: Trainer profile updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  trainer:
+                    $ref: '#/components/schemas/Trainer'
+                  updated:
+                    type: array
+                    items:
+                      type: string
+        '401':
+          description: Unauthorized
+        '403':
+          description: Not a trainer
+
+  /admin/users:
+    get:
+      tags:
+        - Admin
+      summary: List users (admin only)
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 30
+            maximum: 100
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum: [USER, TRAINER, ADMIN]
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: emailVerified
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: User list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      users:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/User'
+                      total:
+                        type: integer
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden (admin only)
+
+  /admin/trainers/{id}/verify:
+    patch:
+      tags:
+        - Admin
+      summary: Verify trainer (admin only)
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - isVerified
+              properties:
+                isVerified:
+                  type: boolean
+                notes:
+                  type: string
+      responses:
+        '200':
+          description: Trainer verification updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  trainer:
+                    $ref: '#/components/schemas/Trainer'
+                  action:
+                    type: object
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden (admin only)
+
+  /admin/analytics:
+    get:
+      tags:
+        - Admin
+      summary: Get platform analytics (admin only)
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Analytics data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalUsers:
+                    type: integer
+                  totalTrainers:
+                    type: integer
+                  totalRevenue:
+                    type: integer
+                  activeVideos:
+                    type: integer
+                  completedFeedback:
+                    type: integer
+                  chartData:
+                    type: object
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden (admin only)

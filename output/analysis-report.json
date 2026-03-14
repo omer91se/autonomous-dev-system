@@ -1,0 +1,426 @@
+{
+  "appName": "FormFit Coach",
+  "analysisDate": "2026-03-14",
+  "codebaseHealth": {
+    "structure": "Good - The project follows Next.js 14 App Router conventions with clear separation of concerns. Components are in /components, utilities in /lib, and routes follow the app directory structure. However, there's minimal component reusability and no dedicated utilities or hooks directories.",
+    "codeQuality": "Fair - Code is generally clean and follows TypeScript best practices. However, there are several issues: (1) No error boundaries implemented, (2) Inconsistent error handling patterns, (3) Missing loading states in many components, (4) No code splitting or lazy loading, (5) Hardcoded values scattered throughout (e.g., workout types in upload/page.tsx), (6) No centralized constants file, (7) Type definitions are scattered and incomplete (missing next-auth.d.ts content verification needed).",
+    "technicalDebt": [
+      "No automated tests (0% test coverage) - no Jest, Vitest, or testing library configured",
+      "Missing error boundaries - unhandled errors will crash the entire app",
+      "No loading/skeleton states for async operations - poor UX during data fetching",
+      "Hardcoded configuration values (workout types, pricing, limits) - should be in config files",
+      "No logging/monitoring infrastructure (no Sentry, LogRocket, etc.)",
+      "Missing database migrations tracking - no migration history or versioning",
+      "No API rate limiting or request throttling",
+      "No input sanitization for XSS prevention on user-generated content",
+      "Prisma client initialization without connection pooling optimization",
+      "No bundle size analysis or optimization",
+      "Missing TypeScript strict mode optimizations (some 'any' types likely present)",
+      "No environment variable validation on startup",
+      "Email transporter created on every import instead of singleton pattern",
+      "S3 client recreated on each use instead of reusing connections"
+    ],
+    "maintainability": "Fair - Well-organized file structure makes it easy to find code, but lack of documentation in code, missing JSDoc comments, and no component prop documentation hurt maintainability. No contribution guidelines or development setup automation."
+  },
+  "architectureReview": {
+    "currentArchitecture": "Next.js 14 App Router full-stack application with: Frontend - React 18 with Server Components and Client Components, TailwindCSS for styling. Backend - Next.js API Routes for REST endpoints, Prisma ORM with PostgreSQL. Authentication - NextAuth.js with JWT sessions and credentials provider. File Storage - AWS S3 with presigned URLs. Payments - Stripe Checkout with webhook handling. Email - NodeMailer with SMTP. State Management - TanStack Query for server state, React hooks for local state.",
+    "issues": [
+      "No API versioning strategy - breaking changes will affect all clients",
+      "Missing pagination on list endpoints (videos, feedback) - will cause performance issues at scale",
+      "No caching layer (Redis) for frequently accessed data like trainer lists",
+      "Database queries not optimized - N+1 query potential in feedback/video relationships",
+      "No CDN configured for static assets",
+      "Missing database indexes on commonly filtered fields (createdAt on several tables)",
+      "No separation of concerns between business logic and route handlers - all logic in route files",
+      "No service layer or repository pattern - database calls scattered throughout",
+      "File upload uses presigned URLs but no cleanup job for abandoned uploads",
+      "No retry logic for failed email sends or webhook processing",
+      "Session strategy uses JWT but no refresh token mechanism - users must re-login when tokens expire",
+      "No WebSocket implementation for real-time updates (trainer notifications, feedback status)"
+    ],
+    "opportunities": [
+      "Implement tRPC for type-safe API calls instead of fetch with manual typing",
+      "Add React Query devtools for better debugging",
+      "Implement incremental static regeneration (ISR) for trainer listings page",
+      "Add edge functions for authentication middleware (faster global performance)",
+      "Implement image optimization with next/image for trainer avatars and thumbnails",
+      "Add server actions for form submissions (simpler than API routes)",
+      "Implement middleware-based request logging and monitoring",
+      "Use Prisma Client Extensions for reusable query logic",
+      "Implement optimistic updates with React Query for better UX",
+      "Add Suspense boundaries for better loading states",
+      "Implement parallel route segments for complex dashboards",
+      "Use Next.js metadata API more extensively for SEO"
+    ]
+  },
+  "designReview": {
+    "designSystem": "Fair - Custom Tailwind utility classes defined (btn, card, input) provide consistency. Color palette is defined with primary and accent colors. However: (1) No design tokens file, (2) Inconsistent spacing usage, (3) No typography scale defined, (4) No component variants documented, (5) No Storybook or component library documentation.",
+    "uiIssues": [
+      "No favicon or app icons defined",
+      "Landing page lacks visual interest - no images, videos, or testimonials",
+      "No empty states with actionable CTAs for most pages",
+      "Forms lack real-time validation feedback - errors only shown on submit",
+      "No confirmation dialogs for destructive actions",
+      "Missing breadcrumb navigation on nested pages",
+      "No visual feedback for successful actions (toasts/notifications)",
+      "Trainer cards lack profile images - text-only is less engaging",
+      "Video player not implemented - just shows 'fileUrl' without actual playback",
+      "No thumbnail previews for videos",
+      "Dashboard lacks visual hierarchy - everything looks same importance",
+      "No dark mode support despite CSS variables being defined",
+      "Mobile responsiveness not tested - likely has issues on small screens",
+      "No loading spinners or progress indicators during async operations",
+      "Form inputs lack proper focus states and accessibility styling"
+    ],
+    "uxIssues": [
+      "No onboarding flow for new users - dropped into empty dashboard",
+      "Credit purchase flow is unclear - no pricing page or packages displayed",
+      "No way to preview trainer profiles before selecting",
+      "Feedback submission has no autosave - users lose work if they navigate away",
+      "No search or filter functionality on trainer listings",
+      "No ability to edit or delete uploaded videos",
+      "Missing user profile settings page - can't update name, email, password",
+      "No notification system - users don't know when feedback is ready without checking",
+      "Trainer selection is one-way - users can't change trainers after selection",
+      "No way to view feedback history or previous reviews",
+      "Missing pagination on dashboard - only shows 10 videos",
+      "No video upload progress indicator - users don't know if large files are uploading",
+      "Credit balance not prominently displayed - users might not know they need to purchase",
+      "No way to request refunds or dispute feedback",
+      "Missing help/support documentation or contact information"
+    ],
+    "accessibilityIssues": [
+      "No ARIA labels on interactive elements",
+      "Form inputs missing associated labels (some use htmlFor, others don't)",
+      "No keyboard navigation support verified",
+      "Color contrast not verified - may fail WCAG AA standards",
+      "No screen reader testing done",
+      "Focus indicators missing or unclear on interactive elements",
+      "No skip-to-content link for keyboard users",
+      "Error messages not announced to screen readers",
+      "Modal/dialog elements missing proper ARIA roles and focus trapping",
+      "No alt text strategy for future images",
+      "Video player would lack captions/subtitles support",
+      "No reduced motion support for animations"
+    ]
+  },
+  "featureGaps": [
+    "No video playback functionality - currently just stores URLs without player",
+    "Missing timestamped comments feature mentioned in landing page but not implemented",
+    "No trainer rating system for users to rate trainers after feedback",
+    "No subscription tier system mentioned in README Phase 2",
+    "Missing admin panel for platform management",
+    "No analytics dashboard for trainers to track performance",
+    "No user profile editing or account management",
+    "Missing email verification flow - users can register with invalid emails",
+    "No password reset functionality",
+    "No social authentication (Google, Facebook)",
+    "Missing trainer availability scheduling",
+    "No notification preferences or email unsubscribe",
+    "No referral or credit reward system",
+    "Missing trainer certification verification workflow",
+    "No dispute resolution or refund system",
+    "No messaging system between users and trainers",
+    "Missing video processing (compression, format conversion)",
+    "No mobile app despite being mentioned in future enhancements",
+    "No AI-powered form analysis mentioned in roadmap"
+  ],
+  "performanceIssues": [
+    "No image optimization - next/image not used anywhere",
+    "Bundle size not analyzed - likely shipping too much JavaScript",
+    "No code splitting beyond default Next.js behavior",
+    "TanStack Query configured with short staleTime (60s) - could be optimized per-query",
+    "Database queries load unnecessary relations - over-fetching data",
+    "No server-side caching for expensive queries (trainer listings)",
+    "Prisma queries not using select to limit fields - fetching entire objects",
+    "No lazy loading of components or routes",
+    "Email transporter instantiated on module load instead of lazy initialization",
+    "No compression middleware for API responses",
+    "Large video files could overwhelm server without proper streaming",
+    "No database connection pooling configuration visible",
+    "Middleware runs on every request without optimization",
+    "No prefetching of likely next pages (e.g., trainers page from dashboard)",
+    "CSS utility classes could benefit from PurgeCSS verification"
+  ],
+  "securityIssues": [
+    "NextAuth secret defaults to weak value in .env.example",
+    "No rate limiting on authentication endpoints - vulnerable to brute force",
+    "No CSRF protection beyond NextAuth defaults",
+    "API routes don't validate content-type headers",
+    "No SQL injection protection verification (Prisma should handle, but not tested)",
+    "Environment variables not validated on startup - app could run with missing critical vars",
+    "Stripe webhook doesn't verify webhook signature properly in production (uses || '' default)",
+    "AWS credentials fallback to empty strings instead of throwing errors",
+    "No input sanitization for user-generated content (XSS risk in feedback/comments)",
+    "File upload accepts any file type despite claiming video-only (client-side only)",
+    "No file size validation on server-side for uploads",
+    "Presigned URLs don't expire appropriately (1 hour is long for upload)",
+    "No Content Security Policy headers configured",
+    "Missing security headers (X-Frame-Options, X-Content-Type-Options, etc.)",
+    "Password validation only checks length - no complexity requirements",
+    "No account lockout after failed login attempts",
+    "Session tokens don't rotate on privilege escalation",
+    "Trainer role can be set by anyone during registration (no verification process)",
+    "No audit logging for sensitive operations"
+  ],
+  "testCoverage": {
+    "current": "0% - No test files found. No testing framework configured.",
+    "gaps": [
+      "No unit tests for utility functions (validations, auth, s3, stripe, email)",
+      "No integration tests for API routes",
+      "No E2E tests for critical user flows (signup, upload, feedback)",
+      "No component tests for React components",
+      "No database seed data for testing",
+      "No test database configuration",
+      "No CI/CD pipeline with automated testing",
+      "No visual regression testing",
+      "No performance testing or load testing",
+      "No security testing (OWASP Top 10)",
+      "No accessibility testing automation",
+      "No API contract testing",
+      "No mocking strategy for external services (S3, Stripe, email)"
+    ]
+  },
+  "prioritizedImprovements": [
+    {
+      "category": "Security",
+      "title": "Implement comprehensive input validation and sanitization",
+      "description": "Add server-side validation for all user inputs, sanitize HTML content in feedback and comments to prevent XSS attacks, validate file types and sizes on server-side, and add rate limiting to all public endpoints especially auth routes.",
+      "impact": "High",
+      "effort": "Medium",
+      "priority": "P0"
+    },
+    {
+      "category": "Security",
+      "title": "Add environment variable validation on startup",
+      "description": "Create a startup validation script that checks all required environment variables are present and valid before the application starts. Use a library like zod or joi to validate env vars. Fail fast with clear error messages if configuration is incomplete.",
+      "impact": "High",
+      "effort": "Small",
+      "priority": "P0"
+    },
+    {
+      "category": "Bug Fix",
+      "title": "Implement actual video playback functionality",
+      "description": "Currently videos are uploaded but there's no player to view them. Integrate a video player library (video.js, Plyr, or react-player) that supports S3 presigned URLs. Add playback controls, quality selection, and playback speed controls. This is critical for the core functionality.",
+      "impact": "High",
+      "effort": "Medium",
+      "priority": "P0"
+    },
+    {
+      "category": "Bug Fix",
+      "title": "Add error boundaries to prevent app crashes",
+      "description": "Implement React error boundaries at the root layout and major page sections to catch runtime errors gracefully. Display user-friendly error messages instead of crashing. Log errors to monitoring service for debugging.",
+      "impact": "High",
+      "effort": "Small",
+      "priority": "P0"
+    },
+    {
+      "category": "Security",
+      "title": "Fix Stripe webhook signature verification",
+      "description": "The webhook route uses empty string fallback for STRIPE_WEBHOOK_SECRET which will fail in production. Make this a required env var, validate it exists on startup, and remove the fallback. Add proper error logging for webhook failures.",
+      "impact": "High",
+      "effort": "Small",
+      "priority": "P0"
+    },
+    {
+      "category": "Feature",
+      "title": "Implement credit purchase pricing page and flow",
+      "description": "Create a dedicated /credits or /pricing page that shows available credit packages with clear pricing. Implement the full purchase flow with package selection, Stripe checkout, and success/failure handling. Currently the credits page is referenced but doesn't exist.",
+      "impact": "High",
+      "effort": "Medium",
+      "priority": "P0"
+    },
+    {
+      "category": "UX",
+      "title": "Add comprehensive loading and error states",
+      "description": "Implement loading skeletons for all async data fetching, show progress indicators for uploads, add error states with retry buttons for failed operations. Use React Suspense where appropriate. This dramatically improves perceived performance.",
+      "impact": "High",
+      "effort": "Medium",
+      "priority": "P1"
+    },
+    {
+      "category": "Feature",
+      "title": "Implement timestamped video comments",
+      "description": "The landing page promises 'timestamped comments' but this isn't implemented. Add ability for trainers to add comments linked to specific video timestamps. Users should be able to click comments and jump to that point in the video. This is a key differentiator.",
+      "impact": "High",
+      "effort": "Large",
+      "priority": "P1"
+    },
+    {
+      "category": "Performance",
+      "title": "Add pagination and infinite scroll to list pages",
+      "description": "Implement cursor-based pagination for videos, feedback, and trainers lists. Currently queries use 'take' limits without pagination which will break at scale. Add infinite scroll on frontend with React Query for smooth UX.",
+      "impact": "High",
+      "effort": "Medium",
+      "priority": "P1"
+    },
+    {
+      "category": "Feature",
+      "title": "Implement email verification and password reset",
+      "description": "Add email verification flow with verification tokens sent after signup. Users must verify email before uploading videos. Add forgot password flow with secure reset tokens. These are essential security features for production.",
+      "impact": "High",
+      "effort": "Medium",
+      "priority": "P1"
+    },
+    {
+      "category": "Feature",
+      "title": "Build user profile and settings page",
+      "description": "Create /settings route where users can update name, email, password, notification preferences, and fitness goals. Trainers should be able to edit bio, specialties, certifications, and hourly rate. Currently no way to edit profile after signup.",
+      "impact": "Medium",
+      "effort": "Medium",
+      "priority": "P1"
+    },
+    {
+      "category": "Bug Fix",
+      "title": "Fix Trainer relation queries in feedback routes",
+      "description": "In /app/api/feedback/route.ts lines 28-31, the trainer relation select tries to access 'name' and 'role' but Trainer model doesn't have these - they're on the User model. This will cause runtime errors. Fix the nested relation query.",
+      "impact": "High",
+      "effort": "Small",
+      "priority": "P0"
+    },
+    {
+      "category": "UX",
+      "title": "Add real-time notification system",
+      "description": "Implement toast notifications for user actions (upload success, feedback received, credit purchase). Consider WebSocket or polling for real-time updates when trainers submit feedback. Add notification bell icon in navbar with unread count.",
+      "impact": "Medium",
+      "effort": "Medium",
+      "priority": "P1"
+    },
+    {
+      "category": "Feature",
+      "title": "Implement trainer rating and review system",
+      "description": "After receiving feedback, allow users to rate trainers (1-5 stars) and write reviews. Display ratings on trainer cards and profile pages. Update trainer.rating calculation based on user reviews instead of defaulting to 0.",
+      "impact": "Medium",
+      "effort": "Medium",
+      "priority": "P1"
+    },
+    {
+      "category": "Feature",
+      "title": "Add video management features (edit, delete, privacy)",
+      "description": "Allow users to edit video titles/descriptions, delete videos they've uploaded, and set privacy settings. Add confirmation modals for destructive actions. Implement proper cascade deletes with cleanup of S3 files.",
+      "impact": "Medium",
+      "effort": "Medium",
+      "priority": "P2"
+    },
+    {
+      "category": "Performance",
+      "title": "Optimize database queries and add caching",
+      "description": "Add Redis caching layer for trainer listings, user credits, and other frequently accessed data. Optimize Prisma queries to use select() for specific fields instead of fetching entire objects. Add database indexes on filtered columns.",
+      "impact": "Medium",
+      "effort": "Large",
+      "priority": "P2"
+    },
+    {
+      "category": "UX",
+      "title": "Create comprehensive onboarding flow",
+      "description": "Design multi-step onboarding for new users: welcome message, profile completion, first video upload tutorial, trainer selection guide. For trainers: certification upload, profile setup, payout configuration. Use a library like react-joyride for guided tours.",
+      "impact": "Medium",
+      "effort": "Large",
+      "priority": "P2"
+    },
+    {
+      "category": "Feature",
+      "title": "Build admin dashboard for platform management",
+      "description": "Create admin-only routes for: user management, trainer verification, platform analytics, content moderation, refund processing. Add admin role to User enum and protect routes. Essential for scaling the platform.",
+      "impact": "Medium",
+      "effort": "Large",
+      "priority": "P2"
+    },
+    {
+      "category": "Feature",
+      "title": "Add search and advanced filtering for trainers",
+      "description": "Implement search by name, filter by specialties, certifications, rating, price range, and availability. Add sorting options (rating, reviews, price). Use Prisma full-text search or integrate Algolia/Elasticsearch for better search.",
+      "impact": "Medium",
+      "effort": "Medium",
+      "priority": "P2"
+    },
+    {
+      "category": "Bug Fix",
+      "title": "Implement proper file cleanup for abandoned uploads",
+      "description": "Create a cleanup job that removes S3 files for videos that were uploaded via presigned URL but never had a Video record created. Run as a scheduled task (cron job or serverless function) to prevent storage bloat.",
+      "impact": "Low",
+      "effort": "Medium",
+      "priority": "P2"
+    },
+    {
+      "category": "Feature",
+      "title": "Add comprehensive testing infrastructure",
+      "description": "Set up Jest/Vitest with React Testing Library for component tests. Add Playwright or Cypress for E2E tests covering critical flows. Implement API route testing. Set up test database with seed data. Add CI/CD pipeline with automated testing on PRs.",
+      "impact": "High",
+      "effort": "Large",
+      "priority": "P1"
+    },
+    {
+      "category": "UX",
+      "title": "Improve mobile responsiveness and touch interactions",
+      "description": "Audit all pages on mobile devices, fix layout issues, ensure touch targets are minimum 44x44px, improve form inputs for mobile, test on iOS and Android. Add mobile-specific optimizations like bottom navigation.",
+      "impact": "Medium",
+      "effort": "Medium",
+      "priority": "P2"
+    },
+    {
+      "category": "Feature",
+      "title": "Implement video processing pipeline",
+      "description": "Add server-side video processing: generate thumbnails, compress videos, convert to web-optimized formats (H264/VP9), create multiple quality versions. Use FFmpeg or cloud service like Mux/Cloudinary. Improves load times and bandwidth.",
+      "impact": "Medium",
+      "effort": "Large",
+      "priority": "P2"
+    },
+    {
+      "category": "Security",
+      "title": "Add comprehensive security headers and CSP",
+      "description": "Implement Content Security Policy, X-Frame-Options, X-Content-Type-Options, Strict-Transport-Security, and other security headers. Use next.config.js headers configuration or middleware. Protect against common web vulnerabilities.",
+      "impact": "Medium",
+      "effort": "Small",
+      "priority": "P1"
+    },
+    {
+      "category": "UX",
+      "title": "Enhance landing page with social proof and visuals",
+      "description": "Add hero image/video, trainer testimonials, user success stories, trust badges (certifications), demo video, before/after comparisons. Add FAQ section. Improve copy with stronger CTAs. This directly impacts conversion rates.",
+      "impact": "Medium",
+      "effort": "Medium",
+      "priority": "P2"
+    },
+    {
+      "category": "Performance",
+      "title": "Optimize bundle size and implement code splitting",
+      "description": "Analyze bundle with @next/bundle-analyzer, lazy load heavy components (video player, react-dropzone), implement route-based code splitting, remove unused dependencies. Set up performance budgets in CI.",
+      "impact": "Low",
+      "effort": "Medium",
+      "priority": "P2"
+    },
+    {
+      "category": "Feature",
+      "title": "Add trainer availability and scheduling system",
+      "description": "Allow trainers to set available hours and maximum reviews per day. Users see estimated turnaround time before selecting trainer. Implement queue system to distribute work fairly. Prevents trainer burnout and sets expectations.",
+      "impact": "Medium",
+      "effort": "Large",
+      "priority": "P3"
+    },
+    {
+      "category": "UX",
+      "title": "Implement autosave for feedback composition",
+      "description": "Auto-save trainer feedback to localStorage or database every 30 seconds as they type. Restore draft if they navigate away and return. Add visual indicator showing 'Saving...', 'Saved', or 'Unsaved changes'. Prevents data loss.",
+      "impact": "Low",
+      "effort": "Small",
+      "priority": "P2"
+    },
+    {
+      "category": "Feature",
+      "title": "Add analytics and monitoring infrastructure",
+      "description": "Integrate Sentry or similar for error tracking, add application performance monitoring (APM), implement custom analytics for business metrics (conversion rates, retention, revenue). Add dashboard for key metrics. Essential for data-driven decisions.",
+      "impact": "Medium",
+      "effort": "Medium",
+      "priority": "P2"
+    },
+    {
+      "category": "UX",
+      "title": "Improve accessibility to WCAG 2.1 AA compliance",
+      "description": "Add proper ARIA labels, ensure keyboard navigation works, verify color contrast ratios, add screen reader testing, implement focus management, add alt text strategy, support reduced motion preferences. Use axe-core or Pa11y for automated testing.",
+      "impact": "Medium",
+      "effort": "Large",
+      "priority": "P2"
+    }
+  ]
+}

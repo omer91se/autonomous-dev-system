@@ -40,12 +40,6 @@ tmp/
 temp/
 *.tmp
 
-# Generated projects (for testing)
-generated-projects/
-test-projects/
-output/
-!output/README.md
-projects/
 
 # State and cache
 .cache/
@@ -54,3 +48,6 @@ state/*.json
 .env.shared
 running-apps.json
 build-history/
+
+
+

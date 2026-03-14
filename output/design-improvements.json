@@ -1,0 +1,425 @@
+{
+  "appName": "FormFit Coach",
+  "reviewDate": "2026-03-14",
+  "currentDesignSystem": {
+    "strengths": [
+      "Clean and professional Tailwind CSS implementation with custom utility classes",
+      "Consistent color palette with primary (blue) and accent (amber) colors defined across full spectrum (50-900)",
+      "Reusable component classes (.btn, .card, .input) provide good consistency baseline",
+      "Mobile-first responsive design approach using Tailwind's breakpoint system",
+      "Clear visual hierarchy on landing page with gradient backgrounds and proper spacing"
+    ],
+    "weaknesses": [
+      "No design tokens file or centralized theme configuration beyond Tailwind config",
+      "Inconsistent spacing usage - no documented spacing scale or rhythm",
+      "Typography scale is undefined - relying solely on Tailwind defaults without customization",
+      "Component variants are undocumented - no pattern library or Storybook",
+      "Dark mode CSS variables defined but not implemented anywhere in the app",
+      "No animation or transition guidelines - only basic transition-colors on buttons",
+      "Missing semantic color definitions for success, error, warning, info states",
+      "No icon system or strategy - no icon library integrated",
+      "Form validation states lack visual design patterns",
+      "Loading states completely absent throughout the application"
+    ],
+    "consistency": "Fair - While the basic building blocks (.btn, .card, .input) provide consistency, their usage is inconsistent across pages. Some pages use utility classes directly while others use component classes. No enforcement mechanism or documentation exists. Status badges use inline Tailwind classes with inconsistent color choices (yellow-100/yellow-800 vs blue-100/blue-800). Button sizing and padding vary between custom implementations and the .btn class."
+  },
+  "designSystemEnhancements": {
+    "colorPalette": {
+      "primary": "Current primary blue (sky blue #0284c7 at 600) works well for a fitness app - energetic and trustworthy. Keep the existing scale from 50-900.",
+      "secondary": "Consider elevating the accent amber color or introducing a complementary purple/indigo for secondary actions to create more visual hierarchy.",
+      "semantic": {
+        "success": "#16A34A",
+        "successLight": "#DCFCE7",
+        "successDark": "#166534",
+        "error": "#DC2626",
+        "errorLight": "#FEE2E2",
+        "errorDark": "#991B1B",
+        "warning": "#F59E0B",
+        "warningLight": "#FEF3C7",
+        "warningDark": "#92400E",
+        "info": "#3B82F6",
+        "infoLight": "#DBEAFE",
+        "infoDark": "#1E40AF"
+      },
+      "neutral": "Extend Tailwind's default gray scale with custom grays for text hierarchy: text-primary (gray-900), text-secondary (gray-600), text-tertiary (gray-500), text-disabled (gray-400)",
+      "status": {
+        "pending": "#F59E0B (warning amber)",
+        "inProgress": "#3B82F6 (info blue)",
+        "completed": "#16A34A (success green)",
+        "failed": "#DC2626 (error red)"
+      }
+    },
+    "typography": {
+      "fontFamilies": "Primary: System font stack (already using Tailwind defaults - good for performance). Consider adding 'Inter' or 'DM Sans' for enhanced readability in long-form content. Monospace: Use for code/technical data.",
+      "headings": "Scale - H1: text-4xl/5xl (36-48px), H2: text-3xl (30px), H3: text-2xl (24px), H4: text-xl (20px), H5: text-lg (18px). Font weights: H1/H2 extrabold (800), H3/H4 bold (700), H5 semibold (600). Line height: tight for H1/H2 (1.2), normal for H3-H5 (1.5).",
+      "body": "Base size: text-base (16px) with line-height relaxed (1.625) for readability. Small: text-sm (14px) for secondary info, captions. Extra small: text-xs (12px) for labels, badges.",
+      "interactiveElements": "Buttons: font-medium (500), Labels: font-medium (500), Links: font-normal with hover:underline",
+      "characterLimits": "Card titles: 60 characters, Descriptions: 200 characters for preview, Bio: 500 characters, Feedback: 5000 characters"
+    },
+    "spacing": {
+      "scale": "Use Tailwind's 4px base scale (0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 20, 24, 32, 40, 48, 56, 64). Component spacing: gap-4 (16px) for cards, gap-6 (24px) for sections, gap-8 (32px) for major sections.",
+      "containerMaxWidth": "max-w-7xl (1280px) for main content, max-w-3xl (768px) for forms and focused content, max-w-md (448px) for auth pages",
+      "sectionPadding": "Vertical: py-8 (32px) for sections, py-12 (48px) for major sections, py-20 (80px) for landing page sections. Horizontal: px-4 sm:px-6 lg:px-8 for responsive horizontal padding",
+      "cardPadding": "p-6 (24px) standard, p-4 (16px) compact for mobile or dense layouts"
+    },
+    "borderRadius": {
+      "default": "rounded-md (6px) for cards, inputs, buttons",
+      "large": "rounded-lg (8px) for prominent cards, modals",
+      "full": "rounded-full for avatars, pills, badges",
+      "none": "rounded-none for connected elements (like grouped form inputs)"
+    },
+    "shadows": {
+      "card": "shadow-md (medium) for elevated cards",
+      "cardHover": "shadow-lg on hover for interactive cards",
+      "modal": "shadow-xl for modals and overlays",
+      "dropdown": "shadow-lg for dropdowns and popovers",
+      "none": "shadow-none for flat designs"
+    },
+    "components": {
+      "needed": [
+        "VideoPlayer - Critical missing component for core functionality",
+        "ProgressBar - For upload progress and loading states",
+        "Skeleton - Loading skeleton for list views",
+        "Toast/Notification - User feedback system",
+        "Modal/Dialog - Confirmations and focused content",
+        "Dropdown Menu - User menu, actions menu",
+        "Badge - Status indicators, categories",
+        "Avatar - User/trainer profile images",
+        "EmptyState - When lists have no content",
+        "ErrorState - Error boundaries and failed states",
+        "Tabs - For settings page and multi-section views",
+        "Tooltip - Contextual help",
+        "Spinner - Loading indicator",
+        "FileUploadZone - Drag and drop improved",
+        "Timeline - For timestamped comments on videos",
+        "Rating - Star rating system for trainers",
+        "Pagination - For list views",
+        "SearchInput - With icon and clear button",
+        "Select - Improved dropdown with search",
+        "Checkbox/Radio - Form inputs",
+        "Switch/Toggle - Settings and preferences"
+      ],
+      "toImprove": [
+        "Navbar - Add user dropdown menu, notification bell, mobile hamburger menu",
+        "Button - Add loading state, icon support, size variants (sm, md, lg)",
+        "Input - Add error states, icon support, character counter",
+        "Card - Add variants (outlined, elevated, interactive with hover)",
+        "Form - Add validation state styling, field grouping"
+      ]
+    },
+    "animations": {
+      "transitions": "Use transition-all duration-200 for quick interactions, duration-300 for standard, duration-500 for larger transformations",
+      "hover": "Scale up slightly (scale-105) on interactive cards, change shadow elevation",
+      "loading": "Pulse animation for skeletons, spin for spinners",
+      "toasts": "Slide in from top-right with fade",
+      "modals": "Fade in backdrop, scale up modal from 95% to 100%",
+      "reducedMotion": "Respect prefers-reduced-motion media query"
+    },
+    "icons": {
+      "library": "Recommend Heroicons (already common in React/Next.js) or Lucide React for consistent icon system",
+      "sizes": "w-4 h-4 (16px) for inline, w-5 h-5 (20px) for buttons, w-6 h-6 (24px) for prominent",
+      "usage": "Always pair icons with text or aria-label for accessibility"
+    }
+  },
+  "featureDesigns": [
+    {
+      "improvementId": "IMP-003",
+      "featureName": "Video Player",
+      "designDescription": "Professional video player with custom controls matching the app's design system. The player should feel native to the app, not like an embedded third-party component. Use react-player as the core but style it completely custom.",
+      "components": [
+        "VideoPlayer - Main container component",
+        "VideoControls - Custom control bar",
+        "PlayPauseButton - Large centered overlay + control bar button",
+        "Timeline - Seekable progress bar with timestamp markers for comments",
+        "VolumeControl - Slider with mute button",
+        "SpeedControl - Dropdown with 0.5x, 1x, 1.25x, 1.5x, 2x options",
+        "FullscreenButton - Toggle fullscreen mode",
+        "VideoLoadingSkeleton - Placeholder while loading",
+        "VideoErrorState - Error display with retry"
+      ],
+      "layoutStructure": "16:9 aspect ratio container with rounded corners (rounded-lg). Video fills container with object-cover. Controls overlay at bottom with semi-transparent black background (bg-black/60 backdrop-blur-sm). Large play/pause button in center (w-16 h-16) that fades out during playback. Timeline spans full width above control bar with comment markers as colored dots (primary-500) positioned absolutely. Control bar contains: play/pause (left), current time, timeline, total duration, volume, speed selector, fullscreen (right).",
+      "interactions": [
+        "Click/tap video to play/pause with visual feedback",
+        "Hover video to show controls (auto-hide after 3s inactivity)",
+        "Click timeline to seek to position",
+        "Hover timeline to show preview thumbnail (future enhancement)",
+        "Click comment markers on timeline to jump to timestamp and highlight comment",
+        "Keyboard shortcuts: Space (play/pause), Left/Right arrows (seek ±5s), Up/Down arrows (volume), F (fullscreen), M (mute), Numbers 0-9 (jump to 0%-90%)",
+        "Double-click for fullscreen toggle",
+        "Pinch to zoom on mobile (if applicable)"
+      ],
+      "states": {
+        "loading": "Show skeleton with pulse animation matching video aspect ratio. Display spinner in center with 'Loading video...' text below. Progress bar if we can track loading percentage.",
+        "playing": "Controls auto-hide after 3s unless hovering. Play button icon changes to pause. Timeline updates in real-time with smooth animation.",
+        "paused": "Controls remain visible. Pause icon shows in center overlay briefly then fades. Timeline remains at current position.",
+        "buffering": "Show subtle spinner in top-right corner without interrupting view. Don't hide video. Timeline shows buffered ranges in lighter color.",
+        "error": "Replace video with error state component. Red error icon, 'Failed to load video' message, 'Retry' button, 'Report issue' link. Show error details in development mode.",
+        "ended": "Show replay button in center. Display 'Watch again' overlay with semi-transparent background. Suggest related videos or next steps (like requesting feedback if they haven't)."
+      },
+      "mobileConsiderations": "Touch-friendly controls with minimum 44px touch targets. Larger play/pause button (w-20 h-20) on mobile. Timeline height increased to 12px for easier scrubbing. Volume control hidden on mobile (use device volume). Speed control accessible via tap rather than hover. Support landscape orientation with true fullscreen. Prevent accidental pauses during scrolling. Show controls on tap, hide on tap outside controls.",
+      "accessibility": "ARIA labels on all controls: 'Play video', 'Pause video', 'Seek slider', 'Volume control', 'Playback speed', 'Fullscreen'. Keyboard navigation support for all controls. Visible focus indicators with primary-500 ring. Screen reader announces state changes 'Playing', 'Paused', 'Buffering'. Support for captions/subtitles (future: add CC button when available). Time display in accessible format 'X minutes Y seconds'."
+    },
+    {
+      "improvementId": "IMP-006",
+      "featureName": "Credit Purchase / Pricing Page",
+      "designDescription": "Compelling pricing page that clearly communicates value and makes purchasing easy. Use psychological pricing strategies, social proof, and clear CTAs. The existing credits page is functional but lacks polish and persuasion.",
+      "components": [
+        "PricingCard - Individual package display",
+        "PopularBadge - 'Most Popular' indicator",
+        "PriceDisplay - Large, prominent price",
+        "FeatureList - Benefits included in package",
+        "CTAButton - Purchase button with loading state",
+        "ComparisonTable - Side-by-side package comparison (optional enhancement)",
+        "FAQ - Common questions about credits",
+        "TestimonialCarousel - Social proof from users"
+      ],
+      "layoutStructure": "Hero section with headline 'Invest in Your Fitness Journey' and subheading about value. Grid of 4 pricing cards (2x2 on tablet, 4x1 on desktop). Most popular card elevated with ring-2 ring-primary-500 and -translate-y-2 to lift it. Each card has: badge area (top), package name, large price, 'per review' calculation, feature list with checkmarks, CTA button (primary for popular, secondary for others), small print about credits never expiring. Below cards: 'How Credits Work' section with 3 steps (existing design is good). FAQ accordion at bottom. Trust badges (secure payment, money-back guarantee icons) near CTAs.",
+      "interactions": [
+        "Hover pricing cards to scale-105 and increase shadow",
+        "Click purchase button shows loading spinner and 'Processing...' text",
+        "Error in checkout shows toast notification with specific error",
+        "Success redirects to Stripe Checkout in same window",
+        "FAQ items expand/collapse with smooth animation",
+        "Testimonial carousel auto-advances every 5s, manual controls available"
+      ],
+      "states": {
+        "loading": "Skeleton loaders for pricing cards while fetching package data from API (future: allow dynamic pricing)",
+        "purchasing": "Clicked button shows spinner, disabled state, all other buttons disabled to prevent double-purchase",
+        "error": "Toast notification slides in from top-right: red background, error icon, message, dismiss button. Button returns to normal state.",
+        "success": "Brief success toast before redirect: 'Redirecting to secure checkout...'",
+        "lowCredit": "If user has low credits (<3), show promotional banner at top of dashboard linking to pricing"
+      },
+      "mobileConsiderations": "Stack pricing cards vertically on mobile. Sticky CTA button bar at bottom of screen showing selected package and total price. Cards condensed: smaller badge, tighter spacing. FAQ accordion essential on mobile to save space. Testimonials single column with swipe gestures.",
+      "accessibility": "Clear heading hierarchy (h1 for page title, h2 for section titles, h3 for card titles). Prices announced clearly: 'Dollar signs 124.99 for 5 credits'. Feature lists use proper <ul> with list-style. Buttons have loading state announced: 'Processing payment, please wait'. Focus management: after error, focus returns to purchase button. FAQ accordion uses proper ARIA attributes (aria-expanded, aria-controls)."
+    },
+    {
+      "improvementId": "IMP-007",
+      "featureName": "Loading and Error States",
+      "designDescription": "Comprehensive loading and error state system that provides consistent feedback across the entire application. Users should always know what's happening and have options to recover from errors.",
+      "components": [
+        "Skeleton - Reusable skeleton loader matching content shape",
+        "Spinner - Circular loading indicator",
+        "ProgressBar - Linear progress for uploads/processes",
+        "EmptyState - When no content exists",
+        "ErrorState - Error display with recovery options",
+        "Toast - Temporary notifications for feedback"
+      ],
+      "layoutStructure": "Skeleton components mirror final content: VideoListSkeleton (3 card skeletons with pulse), TrainerCardSkeleton (avatar circle, 3 text lines), DashboardSkeleton (header + list). Error states replace content area with centered: error icon (w-16 h-16), error message (text-xl font-semibold), description (text-gray-600), action buttons (Retry, Go Home, Contact Support). Toasts appear in top-right corner, stacked if multiple, with slide-in animation.",
+      "interactions": [
+        "Skeleton pulse animation smooth and subtle (not distracting)",
+        "Upload progress bar fills left to right with percentage label",
+        "Error 'Retry' button re-attempts failed operation",
+        "Toasts auto-dismiss after 5s unless hovered",
+        "Toast dismiss button (x) closes immediately",
+        "Empty state CTA navigates to relevant action"
+      ],
+      "states": {
+        "loading": "Initial data fetch: Full skeleton replacing content. Refetch: Subtle spinner in corner, content remains visible but slightly dimmed (opacity-60). Pagination: Spinner at bottom while loading more. Infinite scroll: Small skeleton cards append to list.",
+        "error": "Network error: 'Connection lost' with Retry. 404: 'Content not found' with Go Home. 500: 'Server error' with Retry and Report. Form validation: Inline errors below fields with red text and error icon. Upload error: Error state in upload zone with 'Try Again'.",
+        "empty": "No videos: Illustration/icon, 'No videos yet', description, 'Upload Your First Video' button. No trainers: 'No trainers available', 'Check back later' message. No search results: 'No results found for [query]', 'Clear filters' or 'Browse all' button.",
+        "success": "Upload complete: Green toast with checkmark, 'Video uploaded successfully'. Credit purchase: 'Payment successful! [X] credits added'. Feedback submitted: 'Feedback sent to user'. Settings saved: 'Settings updated'."
+      },
+      "mobileConsiderations": "Toasts take more screen width on mobile (min-w-[90vw]) to be readable. Error states condense with smaller icon, shorter text. Progress bars remain visible even when keyboard open. Skeleton animations less aggressive to save battery. Retry buttons full-width on mobile for easy tapping.",
+      "accessibility": "Loading states announced to screen readers: 'Loading content, please wait'. Errors announced immediately with aria-live='assertive'. Success toasts with aria-live='polite'. Skeleton elements have aria-label='Loading placeholder'. Progress bars have aria-valuenow, aria-valuemin, aria-valuemax for percentage. Focus management: on error, focus moved to error message and retry button for immediate keyboard access."
+    },
+    {
+      "improvementId": "IMP-008",
+      "featureName": "Timestamped Video Comments",
+      "designDescription": "Interactive comment system that allows trainers to mark specific moments in videos and users to navigate using those markers. This is a key differentiating feature that needs excellent UX.",
+      "components": [
+        "CommentTimeline - Visual timeline showing all comments",
+        "CommentMarker - Dot on video timeline at timestamp",
+        "CommentForm - Add/edit comment at timestamp",
+        "CommentList - List of all comments with timestamps",
+        "CommentCard - Individual comment display",
+        "JumpToTimeButton - Click to seek video to timestamp"
+      ],
+      "layoutStructure": "Two-column layout on desktop: Video player (60% width) on left, comment panel (40% width) on right. Mobile: Video full width, comments below. Comment panel has: 'Add Comment' button fixed at top, scrollable comment list below. Each comment card shows: timestamp badge (primary-600 bg, white text, rounded-full), comment text, edit/delete buttons for trainer. Comment markers on video timeline are small circles (w-2 h-2) in primary-500 color, positioned absolutely at correct timestamp percentage. Hover marker shows tooltip with comment preview.",
+      "interactions": [
+        "Trainer clicks 'Add Comment' button, form appears with current timestamp pre-filled",
+        "Click comment timestamp to jump video to that moment and highlight comment briefly",
+        "Click marker on timeline jumps to timestamp",
+        "Hover marker shows tooltip with first 50 chars of comment",
+        "Click outside comment form to cancel",
+        "Drag timeline automatically updates timestamp in open comment form",
+        "Comments sort chronologically by timestamp (earliest first)"
+      ],
+      "states": {
+        "adding": "Form expanded with timestamp input (editable), large textarea (500 char limit), Cancel/Save buttons. Character counter shows remaining characters. Save disabled if empty comment.",
+        "editing": "Same form but pre-filled with existing comment. 'Update' instead of 'Save' button. Delete button visible.",
+        "viewing": "Read-only comment cards. Click timestamp badge or anywhere on card to jump to time. Subtle hover state (bg-gray-50) to show interactivity.",
+        "empty": "No comments yet: 'No comments added. Click \"Add Comment\" while watching the video to provide timestamped feedback.' Shows for users viewing feedback with no comments."
+      },
+      "mobileConsiderations": "Video and comments stack vertically. 'Add Comment' button sticky at bottom of screen while scrolling comments. Comment form slides up as modal from bottom. Timestamp tapping jumps video and scrolls to keep video visible. Markers on timeline slightly larger (w-3 h-3) for touch targets. Swipe comment cards to reveal edit/delete actions.",
+      "accessibility": "Comments announced as 'Comment at [time]: [text]'. Timestamp buttons have aria-label='Jump to X minutes Y seconds'. Comment form has proper labels and ARIA. Marker tooltip content accessible to screen readers. Keyboard navigation through comments with arrow keys. Enter to jump to timestamp. Focus management: after adding comment, focus moves to new comment in list."
+    },
+    {
+      "improvementId": "IMP-013",
+      "featureName": "Notification System",
+      "designDescription": "Multi-channel notification system providing immediate feedback and keeping users engaged. Balance between being informative and not overwhelming.",
+      "components": [
+        "NotificationBell - Icon in navbar with unread badge",
+        "NotificationDropdown - List of recent notifications",
+        "NotificationCard - Individual notification item",
+        "Toast - Immediate action feedback",
+        "EmailTemplate - Formatted email notifications",
+        "NotificationBadge - Unread count indicator"
+      ],
+      "layoutStructure": "Navbar: Bell icon (w-6 h-6) in top right, red badge (rounded-full, min-w-[20px], h-5) showing unread count if >0. Dropdown: 320px width, max-h-[400px] with scroll, shadow-lg. Dropdown header: 'Notifications' title, 'Mark all read' button. List of notifications (max 10), each showing: icon (based on type), title (font-semibold), message (text-sm text-gray-600), time ago (text-xs text-gray-500), unread indicator (blue dot). Footer: 'View all' link to /notifications page. Toast: Fixed top-right, 360px width, stacked with 8px gap, auto-dismiss 5s.",
+      "interactions": [
+        "Click bell toggles dropdown",
+        "Click outside dropdown closes it",
+        "Click notification marks as read and navigates to relevant page",
+        "Hover notification shows subtle bg-gray-50",
+        "Click 'Mark all read' clears badge, updates all to read",
+        "New notification plays subtle sound (optional, user preference)",
+        "Toast can be dismissed early by clicking X or swiping right"
+      ],
+      "states": {
+        "unread": "Notification has blue dot on left, bg-blue-50 background, bolder text. Badge shows count, pulses briefly when new notification arrives.",
+        "read": "No dot, white background, normal text weight. Badge count decreases.",
+        "empty": "Dropdown shows 'No notifications' with inbox icon and 'You're all caught up!' message.",
+        "loading": "Dropdown shows 3 skeleton notification cards while fetching",
+        "error": "Toast notification if fetch fails: 'Failed to load notifications. Retry'",
+        "newArrival": "Toast slides in, bell badge increments with bounce animation, dropdown prepends new notification with highlight animation"
+      },
+      "mobileConsiderations": "Dropdown becomes full-width slide-in from right on mobile. Notifications stack in full-screen list. Swipe notification right to mark as read, left to delete. Toast notifications appear at top (not top-right) and are dismissible with swipe down. Badge more prominent on mobile (larger, brighter). Notifications page replaces dropdown on mobile for better UX.",
+      "accessibility": "Bell button has aria-label='Notifications, [X] unread'. Dropdown has role='menu' and aria-expanded state. Each notification is a button with descriptive aria-label including type, message, and time. Screen reader announces new notifications via aria-live region. Badge has aria-label='[X] unread notifications'. Keyboard navigation: Tab through notifications, Enter to open, Escape to close dropdown. Focus trapped in dropdown when open."
+    },
+    {
+      "improvementId": "IMP-011",
+      "featureName": "User Profile and Settings Page",
+      "designDescription": "Comprehensive settings interface allowing users to manage their account and preferences. Should feel organized and easy to navigate with clear sections.",
+      "components": [
+        "SettingsSidebar - Section navigation",
+        "SettingsSection - Container for related settings",
+        "ProfileForm - Edit name, email, avatar",
+        "SecurityForm - Password change, 2FA setup",
+        "PreferencesForm - Notification settings, timezone",
+        "TrainerProfileForm - Bio, specialties, rate, certifications",
+        "AvatarUpload - Profile picture upload with preview",
+        "PasswordStrengthMeter - Visual password strength"
+      ],
+      "layoutStructure": "Two-column layout on desktop: Sidebar (240px fixed) on left with section links, content area (fluid) on right. Mobile: Tabs at top or accordion sections. Sidebar sections: Profile, Security, Preferences, [Trainer Info if applicable]. Each section is a card with heading, description, form fields, save button. Forms use 2-column grid on desktop for compact layout. Avatar upload at top of Profile section: circular preview (w-24 h-24), 'Change photo' button, 'Remove' link.",
+      "interactions": [
+        "Click sidebar item scrolls to section and highlights it",
+        "Form fields auto-save 1s after user stops typing (with 'Saving...' indicator), OR explicit Save button based on field importance",
+        "Email change requires verification - shows warning",
+        "Password change requires current password first",
+        "Password strength updates in real-time as user types",
+        "Specialty multi-select with type-to-search",
+        "Certification upload shows file name and size after selection"
+      ],
+      "states": {
+        "default": "All fields populated with current values. Save buttons enabled when changes detected. No status messages.",
+        "saving": "Save button shows spinner and 'Saving...' text, disabled. Auto-save shows subtle 'Saving...' text next to field.",
+        "saved": "Green checkmark icon and 'Saved' text appears briefly, then fades. Toast notification: 'Settings updated successfully'.",
+        "error": "Red error message below field: 'Email already in use' or 'Current password incorrect'. Save button re-enabled for retry. Toast: 'Failed to save settings. Please try again.'",
+        "validating": "Email change shows 'Verification email sent to new address' info message. Password field shows strength meter: red (weak), yellow (medium), green (strong)."
+      },
+      "mobileConsiderations": "Sidebar becomes horizontal tabs or accordion sections. Forms single column on mobile. Avatar upload larger target area. Password visibility toggle (eye icon) more prominent. Save buttons sticky at bottom of screen. Sections scrollable within viewport.",
+      "accessibility": "Heading hierarchy (h1 Settings, h2 for each section). Sidebar links are nav with aria-current for active section. Form labels properly associated with inputs. Error messages linked with aria-describedby. Password strength announced to screen readers: 'Password strength: weak/medium/strong'. Auto-save status announced: 'Settings saved' with aria-live. Focus management: after save, focus stays on edited field."
+    }
+  ],
+  "uiPatterns": {
+    "loadingStates": "Use skeleton screens for initial page loads to match content structure - reduces perceived load time. For lists (videos, trainers, feedback), show 3 skeleton cards with pulse animation. For data refetch, show subtle spinner in corner without replacing content. For button actions, show spinner inside button with 'Loading...' text. For uploads, show progress bar with percentage (0-100%) and estimated time remaining. For infinite scroll, append skeleton cards at bottom. Never show blank screens - always provide visual feedback.",
+    "errorStates": "Replace failed content area with error state component: Icon (red error icon or specific illustration), heading ('Something went wrong'), description (user-friendly message, not technical details), actions (Retry primary button, Go Home secondary button, Report Issue link for critical errors). For form errors, show inline below field with red text and icon. For API errors, use toast notifications (slide from top-right, red background, auto-dismiss 7s). Always provide recovery path - never dead-end the user. Log detailed errors to console in dev mode.",
+    "emptyStates": "Design welcoming empty states that guide users to their next action. Components: Illustration or icon (grayscale, w-24 h-24), heading ('No videos yet'), encouraging message ('Upload your first workout video to get expert feedback'), primary CTA button ('Upload Video'), optional secondary action ('Learn How It Works'). Use different illustrations per context to feel custom not generic. Empty states should feel helpful, not like a failure.",
+    "feedback": "Use toast notifications (powered by Sonner library) for action feedback. Success: Green background, checkmark icon, brief message ('Video uploaded'), 5s auto-dismiss. Error: Red background, error icon, specific message ('Upload failed. File too large.'), 7s auto-dismiss, manual close X. Info: Blue background, info icon, helpful message ('Credits expire in 30 days'), 5s auto-dismiss. Warning: Amber background, warning icon, caution message ('Low credit balance'), 7s auto-dismiss. Position: top-right on desktop, top center on mobile. Stack multiple toasts with 8px gap. Support undo actions where applicable (e.g., 'Video deleted' with Undo button).",
+    "confirmation": "For destructive actions (delete video, cancel subscription), show modal dialog: Semi-transparent backdrop (bg-black/50), centered modal card (max-w-md, shadow-xl, rounded-lg), icon (red warning triangle), heading ('Delete video?'), description ('This action cannot be undone. The video and all associated feedback will be permanently deleted.'), actions (Cancel secondary, Delete danger button). Focus trap in modal. Close with Escape key. Backdrop click closes modal unless critical action.",
+    "forms": "Consistent form styling: Labels above inputs (font-medium text-gray-700), inputs with border-gray-300, focus ring-primary-500. Required fields marked with red asterisk. Optional fields marked '(optional)' in gray. Real-time validation: show error state (red border, red text below) as soon as user leaves field (onBlur). Success state (green border, checkmark icon) for valid fields. Character counters for limited inputs. Help text below inputs in text-sm text-gray-600. Submit button disabled until form is valid. Show validation summary at top of form if multiple errors.",
+    "navigation": "Primary nav in Navbar (sticky top-0). Active page highlighted with text-primary-600. Breadcrumbs for nested pages (Dashboard > Videos > Form Check Video). User menu in navbar dropdown: Avatar/initials circle, name, email, divider, links (Profile, Settings, Sign Out). Mobile: Hamburger menu icon, slide-in drawer from left with nav links stacked. Back button on detail pages returns to list view with scroll position preserved.",
+    "cards": "Standard card: bg-white rounded-lg shadow-md p-6. Interactive card (clickable): hover:shadow-lg transition-shadow cursor-pointer. Outlined card: border border-gray-200 shadow-none (lighter weight). Highlighted card (most popular pricing): ring-2 ring-primary-500 -translate-y-2. Card header: title (text-lg font-semibold mb-2), subtitle (text-gray-600 text-sm). Card footer: actions right-aligned, secondary actions left.",
+    "buttons": "Primary: bg-primary-600 hover:bg-primary-700 text-white. Secondary: bg-gray-200 hover:bg-gray-300 text-gray-900. Danger: bg-red-600 hover:bg-red-700 text-white. Ghost: text-primary-600 hover:bg-primary-50. Sizes: sm (px-3 py-1.5 text-sm), md (px-4 py-2), lg (px-6 py-3 text-lg). With icon: space-x-2 between icon and text. Loading: show spinner, disable interaction, change text to 'Loading...'. Full width on mobile for primary actions.",
+    "badges": "Small pill-shaped indicators: Rounded-full px-2.5 py-0.5 text-xs font-medium. Status colors: Pending (bg-yellow-100 text-yellow-800), In Progress (bg-blue-100 text-blue-800), Completed (bg-green-100 text-green-800), Failed (bg-red-100 text-red-800). Category badges: bg-primary-100 text-primary-800 for workout types, specialties. Count badges: min-w-[20px] h-5 for notification counts."
+  },
+  "priorityIssues": [
+    {
+      "issue": "No video playback functionality - videos stored but not viewable",
+      "impact": "Critical - Users and trainers cannot watch uploaded videos, making the core product completely non-functional. This blocks feedback creation and review.",
+      "solution": "Implement VideoPlayer component with react-player, custom controls matching design system, support for playback speed, keyboard shortcuts, and mobile optimization. Add loading/error states for failed video loads. Priority: P0.",
+      "priority": "High"
+    },
+    {
+      "issue": "Complete absence of loading states throughout application",
+      "impact": "High - Users see blank screens during data fetching with no indication that anything is happening. This creates perception of broken app, especially on slower connections. Leads to frustration and page abandonment.",
+      "solution": "Implement skeleton loading components for all list views (videos, trainers, feedback). Add spinner states for button actions and form submissions. Create upload progress bar showing percentage. Use React Suspense boundaries where appropriate. Ensure consistent loading patterns across entire app.",
+      "priority": "High"
+    },
+    {
+      "issue": "No error states or recovery paths when operations fail",
+      "impact": "High - When API calls fail, database queries error, or network issues occur, users are left in broken state with no guidance. No retry buttons, no helpful messages, just silence or crashes.",
+      "solution": "Implement ErrorState component with friendly messaging, retry buttons, and contextual help. Add error boundaries to catch React errors. Use toast notifications for action feedback. Provide clear error messages (not technical jargon). Always offer recovery path (Retry, Go Back, Contact Support).",
+      "priority": "High"
+    },
+    {
+      "issue": "Pricing page lacks persuasive design and social proof",
+      "impact": "Medium-High - Current pricing page is functional but doesn't compel purchases. Missing trust signals, testimonials, value propositions, and compelling CTAs. May hurt conversion rates.",
+      "solution": "Redesign pricing cards with better visual hierarchy, clearer value communication (savings percentages, price per review). Add 'Most Popular' badge with elevation. Include testimonials, trust badges (secure payment, money-back guarantee). Add FAQ section addressing purchase concerns. Improve mobile layout.",
+      "priority": "Medium"
+    },
+    {
+      "issue": "Inconsistent status badge styling across the application",
+      "impact": "Medium - Status indicators (Pending, In Progress, Completed) use different color combinations and styling in different places. Reduces professional feel and creates confusion.",
+      "solution": "Create standard Badge component with predefined variants for each status type. Define color palette for statuses in design system (pending: yellow, in-progress: blue, completed: green, failed: red). Use consistently across dashboard, trainer views, and any status displays. Document in pattern library.",
+      "priority": "Medium"
+    },
+    {
+      "issue": "Forms lack real-time validation and helpful error messages",
+      "impact": "Medium - Validation only runs on submit, users must correct errors after failed submission. No character counters, no format hints, no inline validation. Poor UX leads to frustration.",
+      "solution": "Implement real-time validation with onBlur checks for each field. Show error states (red border, error icon, message) immediately. Add character counters for limited fields (bio, description). Show password strength meter. Provide helpful hint text below inputs. Use friendly error messages ('Email is required' not 'Invalid input').",
+      "priority": "Medium"
+    },
+    {
+      "issue": "Missing empty states with actionable CTAs",
+      "impact": "Medium - When users have no content (no videos, no feedback), they see generic messages or nothing. No guidance on what to do next. Missed opportunity to drive engagement.",
+      "solution": "Design custom EmptyState component for each context: No videos ('Upload your first workout video to get started' with Upload button), No trainers ('No trainers available. Check back soon.'), No feedback ('Your feedback will appear here after trainers review your videos'). Include illustrations or icons, encouraging copy, and clear next steps.",
+      "priority": "Medium"
+    },
+    {
+      "issue": "Navbar lacks user menu and mobile responsiveness",
+      "impact": "Medium - User name displayed as text with no dropdown menu. No access to profile/settings from navbar. No mobile hamburger menu - nav probably breaks on small screens. Limited functionality.",
+      "solution": "Add user dropdown menu in navbar: Avatar/initials circle, name, dropdown with Profile, Settings, Sign Out links. Add mobile hamburger menu icon that opens slide-in drawer with stacked nav links. Ensure navbar is fully responsive with proper spacing on all screen sizes. Add notification bell icon (for future notification system).",
+      "priority": "Medium"
+    },
+    {
+      "issue": "No confirmation dialogs for destructive actions",
+      "impact": "Medium - Users could accidentally delete videos or cancel important actions with no warning. No undo functionality. Data loss risk.",
+      "solution": "Implement Modal/Dialog component for confirmations. Show for destructive actions (delete video, cancel feedback request, delete account). Modal should clearly explain action consequences, show what will be lost, require explicit confirmation (type 'DELETE' or click prominently labeled button). Use danger button styling for destructive action.",
+      "priority": "Medium"
+    },
+    {
+      "issue": "Typography scale and hierarchy not defined",
+      "impact": "Low-Medium - Currently using default Tailwind text sizes without clear hierarchy. Headings, body, labels not consistently sized. Makes pages feel less polished and harder to scan.",
+      "solution": "Define and document typography scale: H1-H5 sizes, weights, line heights. Create heading components or utility classes (.heading-1, .heading-2, etc.). Establish body text sizes (base, small, xs) and when to use each. Document in design system. Apply consistently across all pages.",
+      "priority": "Low"
+    },
+    {
+      "issue": "No dark mode despite CSS variables being defined",
+      "impact": "Low - Dark mode variables exist in globals.css but aren't implemented. Missed opportunity for user preference support and modern UX expectation.",
+      "solution": "Implement dark mode toggle in settings or theme selector in navbar. Use Tailwind's dark: variant throughout components. Test all pages in dark mode for contrast and readability. Store preference in localStorage and respect system preference (prefers-color-scheme). Note: Lower priority than functional issues, can be post-launch enhancement.",
+      "priority": "Low"
+    },
+    {
+      "issue": "Mobile touch targets below recommended 44x44px minimum",
+      "impact": "Medium - Many interactive elements (buttons, links, icons) too small for comfortable mobile tapping. Violates accessibility guidelines and creates poor mobile UX.",
+      "solution": "Audit all interactive elements for minimum 44x44px touch target size. Increase padding on small buttons, make icon buttons larger on mobile, ensure adequate spacing between clickable elements. Test on actual mobile devices. Use responsive utilities to adjust sizing: 'text-sm md:text-base' for buttons, 'p-3 md:p-2' for better mobile targets.",
+      "priority": "Medium"
+    },
+    {
+      "issue": "Color contrast may not meet WCAG AA standards",
+      "impact": "Medium - Some text/background combinations (like gray-600 text on white) may not have sufficient contrast ratio (4.5:1 for normal text, 3:1 for large text). Affects readability especially for users with visual impairments.",
+      "solution": "Audit all color combinations using contrast checker tool (WebAIM Contrast Checker). Adjust gray values if needed: use gray-700 or gray-800 for body text instead of gray-600. Ensure status badge text has sufficient contrast. Test with automated tools (axe DevTools, Lighthouse accessibility audit). Document accessible color combinations in design system.",
+      "priority": "Medium"
+    }
+  ],
+  "recommendations": {
+    "designLibrary": "Consider creating a component library with Storybook to document all components with variants, states, and usage guidelines. This ensures consistency as the team grows and serves as reference for developers.",
+    "designTokens": "Move design tokens (colors, spacing, typography) into a dedicated configuration file that can be imported by Tailwind, used in JS, and referenced in documentation. Makes updates easier and ensures consistency.",
+    "accessibility": "Conduct full accessibility audit with screen reader testing, keyboard navigation verification, and automated tools (axe, Lighthouse). Aim for WCAG 2.1 AA compliance minimum. Document accessibility patterns.",
+    "userTesting": "Test redesigned components with real users before full implementation. Focus on: video player usability, pricing page conversion, settings page findability, mobile experience. Iterate based on feedback.",
+    "progressiveEnhancement": "Implement design improvements incrementally: P0 issues first (video player, loading states), then P1 (error states, notifications), then polish (dark mode, animations). Don't try to redesign everything at once.",
+    "performanceBudget": "Set performance budget for design components: loading animations shouldn't impact page performance, images optimized, icons SVG not PNG, skeleton components lightweight. Monitor bundle size impact.",
+    "mobileFirst": "All new designs should be designed mobile-first, then enhanced for tablet and desktop. Most users likely access fitness apps on mobile. Test every design on real devices, not just browser DevTools."
+  }
+}

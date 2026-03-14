@@ -1,0 +1,1250 @@
+{
+  "appName": "FormFit Coach",
+  "planDate": "2026-03-14",
+  "improvements": [
+    {
+      "id": "IMP-001",
+      "category": "Security",
+      "title": "Implement comprehensive input validation and sanitization",
+      "problem": "The application currently lacks server-side validation for user inputs, making it vulnerable to XSS attacks, malicious file uploads, and abuse through unlimited API requests. User-generated content in feedback and comments is not sanitized, creating security risks. Authentication endpoints have no rate limiting, making them vulnerable to brute force attacks.",
+      "solution": "Implement a multi-layered validation and security approach: (1) Add server-side validation using Zod schemas for all API route inputs, (2) Sanitize HTML content in feedback/comments using DOMPurify or similar library, (3) Add server-side file type validation using magic number detection (not just extension checking), (4) Implement file size limits on server-side (currently only client-side), (5) Add rate limiting middleware using upstash/ratelimit or express-rate-limit for all public endpoints, especially auth routes (max 5 login attempts per 15 minutes), (6) Add CAPTCHA on registration and login forms to prevent automated abuse.",
+      "userStories": [
+        "As a platform operator, I want all user inputs validated so that malicious data cannot enter the system",
+        "As a user, I want protection from XSS attacks so that my account remains secure",
+        "As a trainer, I want assurance that uploaded videos are legitimate so that I don't waste time on malicious files",
+        "As a platform operator, I want rate limiting on auth endpoints so that brute force attacks are prevented"
+      ],
+      "acceptanceCriteria": [
+        "All API routes validate inputs using Zod schemas and return 400 with clear error messages for invalid data",
+        "User-generated HTML content is sanitized before storage and display",
+        "File uploads validate type using magic numbers on server-side, reject non-video files",
+        "File size limit (500MB) enforced on server-side with clear error message",
+        "Rate limiting returns 429 status after threshold exceeded, with retry-after header",
+        "Authentication endpoints limited to 5 attempts per 15 minutes per IP",
+        "CAPTCHA required on registration and after 3 failed login attempts"
+      ],
+      "implementation": {
+        "backend": "Create /lib/validations.ts with Zod schemas for all data types (user, video, feedback, etc.). Create rate limiting middleware using @upstash/ratelimit with Redis. Add DOMPurify server-side package for HTML sanitization. Update all API routes to validate inputs before processing. Add file type validation using 'file-type' npm package to check magic numbers. Add CAPTCHA verification using Google reCAPTCHA v3 in auth routes.",
+        "frontend": "Add Google reCAPTCHA script to layout. Update auth forms to include CAPTCHA token in requests. Display rate limit errors with countdown timer showing when user can retry. Add client-side validation messages that match server-side schemas for better UX.",
+        "database": "No schema changes needed. May need to add RateLimitAttempt table to track failed attempts if not using Redis."
+      },
+      "riceScore": {
+        "reach": 100,
+        "impact": 95,
+        "confidence": 95,
+        "effort": 50,
+        "score": 190.0
+      },
+      "priority": "P0",
+      "estimatedHours": 40
+    },
+    {
+      "id": "IMP-002",
+      "category": "Security",
+      "title": "Add environment variable validation on startup",
+      "problem": "The application can start with missing or invalid environment variables, leading to runtime crashes when features are accessed. AWS credentials and Stripe webhook secrets fallback to empty strings, which will cause silent failures in production. There's no validation that critical configuration is present before accepting requests.",
+      "solution": "Create a startup validation module using Zod that validates all required environment variables before the Next.js app initializes. Define schemas for each environment variable type (string, URL, number, etc.). Fail fast with clear error messages indicating exactly which variables are missing or invalid. Include validation for format (e.g., URLs must be valid, secrets must be minimum length).",
+      "userStories": [
+        "As a developer, I want the app to fail fast on startup with clear error messages so that I know exactly what configuration is missing",
+        "As a DevOps engineer, I want deployment to fail if environment variables are incorrect so that broken configurations don't reach production",
+        "As a platform operator, I want assurance that critical services (Stripe, AWS, email) are properly configured before the app starts accepting traffic"
+      ],
+      "acceptanceCriteria": [
+        "Application fails to start if any required environment variable is missing",
+        "Validation error messages clearly indicate which variables are missing or invalid",
+        "Environment variables are validated for correct format (URLs, email addresses, minimum secret length)",
+        "Type-safe access to environment variables throughout the codebase using validated schema",
+        "Documentation updated to list all required environment variables with descriptions",
+        "Development mode provides helpful suggestions for missing variables"
+      ],
+      "implementation": {
+        "backend": "Create /lib/env.ts with Zod schema defining all environment variables with types and validation rules. Use z.string().min(), z.string().url(), z.string().email() as appropriate. Export validated env object. Import and execute validation in root layout.tsx and middleware.ts. Add try-catch to display formatted error with instructions.",
+        "frontend": "No changes needed - validation happens server-side.",
+        "database": "None"
+      },
+      "riceScore": {
+        "reach": 100,
+        "impact": 90,
+        "confidence": 100,
+        "effort": 15,
+        "score": 600.0
+      },
+      "priority": "P0",
+      "estimatedHours": 12
+    },
+    {
+      "id": "IMP-003",
+      "category": "Bug Fix",
+      "title": "Implement actual video playback functionality",
+      "problem": "This is a critical bug blocking core functionality. Videos are uploaded to S3 and stored in the database, but there's no way for users or trainers to actually watch them. The dashboard and feedback pages just display the S3 URL as text, making the entire platform unusable for its primary purpose. This is a fundamental feature gap that makes the app non-functional.",
+      "solution": "Integrate a robust video player library (recommendation: react-player or video.js) that supports S3 presigned URLs, HLS streaming, and modern video formats. Implement player on both the user dashboard (to review their own videos) and trainer feedback page (to watch videos while providing feedback). Add playback controls: play/pause, timeline scrubbing, volume control, playback speed (0.5x, 1x, 1.25x, 1.5x, 2x), fullscreen mode. Add thumbnail preview on hover over timeline. Support keyboard shortcuts (space for play/pause, arrow keys for seeking).",
+      "userStories": [
+        "As a user, I want to watch my uploaded videos so that I can verify the upload was successful and review what I submitted",
+        "As a trainer, I want to watch user videos with playback controls so that I can analyze form at different speeds and jump to specific moments",
+        "As a trainer, I want to pause at key frames so that I can provide detailed timestamped feedback",
+        "As a user, I want to watch videos in fullscreen mode so that I can see form details clearly"
+      ],
+      "acceptanceCriteria": [
+        "Video player renders successfully on dashboard for user's uploaded videos",
+        "Video player renders on trainer feedback page for assigned videos",
+        "Player successfully loads and plays videos from S3 presigned URLs",
+        "Playback controls work: play/pause, seek, volume, speed, fullscreen",
+        "Loading state shown while video is buffering",
+        "Error state shown if video fails to load with retry button",
+        "Player is responsive and works on mobile devices",
+        "Keyboard shortcuts work for common actions",
+        "Current time and duration displayed in mm:ss format"
+      ],
+      "implementation": {
+        "backend": "Update /app/api/videos/[id]/route.ts to generate fresh presigned URLs with 1-hour expiration when video is accessed (not just on upload). Add error handling for S3 access failures. Consider adding /api/videos/[id]/stream endpoint that proxies video content to avoid presigned URL expiration issues during long viewing sessions.",
+        "frontend": "Install react-player or video.js. Create /components/VideoPlayer.tsx component that accepts video URL and optional settings. Add to app/dashboard/page.tsx for user videos and app/feedback/page.tsx for trainer review. Implement loading skeleton while video initializes. Add error boundary around player. Style player controls to match app theme. Add playback speed selector dropdown. Implement keyboard event handlers for shortcuts.",
+        "database": "None"
+      },
+      "riceScore": {
+        "reach": 100,
+        "impact": 100,
+        "confidence": 100,
+        "effort": 40,
+        "score": 250.0
+      },
+      "priority": "P0",
+      "estimatedHours": 32
+    },
+    {
+      "id": "IMP-004",
+      "category": "Bug Fix",
+      "title": "Add error boundaries to prevent app crashes",
+      "problem": "The application has no error boundaries implemented, meaning any unhandled error in a React component will crash the entire application and show a blank white screen to users. This is especially problematic in production where errors may occur from network issues, API failures, or unexpected data formats. Users lose all context and cannot recover without a full page reload.",
+      "solution": "Implement React error boundaries at strategic points in the component tree: (1) Root error boundary in root layout to catch all errors as last resort, (2) Page-level error boundaries for each major route, (3) Component-level boundaries for high-risk components (video player, file upload, payment forms). Display user-friendly error messages with recovery options (retry, go home, contact support). Log errors to monitoring service (future: Sentry) with component stack traces and user context.",
+      "userStories": [
+        "As a user, I want graceful error handling so that one error doesn't crash the entire application",
+        "As a user, I want clear error messages so that I understand what went wrong and how to proceed",
+        "As a developer, I want error boundaries to catch errors so that I can log them for debugging without breaking UX",
+        "As a user, I want the ability to retry failed operations so that temporary issues don't require full page reloads"
+      ],
+      "acceptanceCriteria": [
+        "Root error boundary catches all uncaught errors and displays fallback UI",
+        "Page-level error boundaries prevent errors from affecting other pages",
+        "Error UI includes helpful message, error details (in dev mode), and action buttons",
+        "Retry button re-attempts the failed operation where applicable",
+        "'Go Home' button navigates to dashboard",
+        "Errors are logged with stack traces and user context for debugging",
+        "Error boundaries reset when user navigates to different page",
+        "Development mode shows detailed error info; production shows user-friendly messages"
+      ],
+      "implementation": {
+        "backend": "Create /lib/logger.ts utility for error logging that will eventually integrate with monitoring service. For now, log to console with structured format including timestamp, user ID, route, and error details.",
+        "frontend": "Create /components/ErrorBoundary.tsx class component implementing componentDidCatch. Create /components/ErrorFallback.tsx for UI. Wrap root layout in app/layout.tsx with root error boundary. Add error boundaries in app/dashboard/layout.tsx, app/upload/layout.tsx, app/trainers/layout.tsx. Add error boundaries around VideoPlayer and FileUpload components. Implement reset logic using key prop changes. Style error UI to match app design with error icon, message, and action buttons.",
+        "database": "None"
+      },
+      "riceScore": {
+        "reach": 100,
+        "impact": 85,
+        "confidence": 100,
+        "effort": 20,
+        "score": 425.0
+      },
+      "priority": "P0",
+      "estimatedHours": 16
+    },
+    {
+      "id": "IMP-005",
+      "category": "Security",
+      "title": "Fix Stripe webhook signature verification",
+      "problem": "The Stripe webhook handler at /app/api/webhooks/stripe/route.ts uses 'process.env.STRIPE_WEBHOOK_SECRET || \"\"' which means if the environment variable is missing, it defaults to an empty string. This will cause webhook signature verification to fail silently or pass with invalid signatures, leading to potential payment fraud, missed payment confirmations, and credit allocation failures. This is a critical security vulnerability that could result in financial loss.",
+      "solution": "Remove the empty string fallback and make STRIPE_WEBHOOK_SECRET a required environment variable that's validated on startup (ties into IMP-002). Update webhook handler to fail fast with proper error logging if secret is missing. Add comprehensive error handling for webhook processing failures with retry logic. Implement webhook event logging to database for audit trail and debugging. Add monitoring alerts for webhook failures.",
+      "userStories": [
+        "As a platform operator, I want webhook signature verification to be secure so that only legitimate Stripe events are processed",
+        "As a user, I want my credit purchases to be reliably recorded so that I always receive the credits I paid for",
+        "As a developer, I want webhook failures to be logged and alerted so that payment issues are caught immediately",
+        "As a platform operator, I want an audit trail of all webhook events so that payment disputes can be investigated"
+      ],
+      "acceptanceCriteria": [
+        "STRIPE_WEBHOOK_SECRET is validated as required on app startup",
+        "Webhook handler returns 400 if signature verification fails",
+        "All webhook events are logged to database with status (success/failure)",
+        "Failed webhook processing triggers retry logic (up to 3 attempts)",
+        "Webhook failures send alerts to platform operators",
+        "Idempotency is enforced - duplicate events don't double-allocate credits",
+        "Test mode and production mode webhooks use separate secrets",
+        "Webhook processing uses database transactions to ensure consistency"
+      ],
+      "implementation": {
+        "backend": "Update /lib/env.ts validation to include STRIPE_WEBHOOK_SECRET as required. Update /app/api/webhooks/stripe/route.ts to remove || '' fallback. Add proper Stripe signature verification with try-catch and error logging. Create StripeWebhookLog model in Prisma schema to track all events. Implement transaction wrapper for credit allocation. Add idempotency check using Stripe event ID. Create /lib/stripe/webhooks.ts with handler functions for each event type (checkout.session.completed, etc.). Add retry queue for failed events.",
+        "frontend": "None - webhooks are server-side only.",
+        "database": "Add StripeWebhookLog model: id, eventId (unique), eventType, status, payload (json), error, attempts, createdAt, processedAt. Add index on eventId for idempotency checks."
+      },
+      "riceScore": {
+        "reach": 100,
+        "impact": 95,
+        "confidence": 100,
+        "effort": 25,
+        "score": 380.0
+      },
+      "priority": "P0",
+      "estimatedHours": 20
+    },
+    {
+      "id": "IMP-006",
+      "category": "Feature",
+      "title": "Implement credit purchase pricing page and flow",
+      "problem": "Users cannot purchase credits because there's no pricing page or credit package selection UI. The dashboard shows credit balance and mentions purchasing credits, but clicking through leads nowhere. This blocks the entire revenue model of the platform. Users who want to use the service cannot pay, resulting in zero revenue and frustrated users.",
+      "solution": "Create a dedicated /credits or /pricing page that displays credit packages with clear pricing and value propositions. Implement package options (e.g., Starter: 50 credits for $49, Pro: 120 credits for $99, Expert: 300 credits for $199). Show price per credit and savings on larger packages. Add Stripe Checkout integration for each package. Implement success and failure handling with redirects. Update user credits after successful payment via webhook. Add purchase history page showing all transactions.",
+      "userStories": [
+        "As a user, I want to see available credit packages so that I can choose the right amount for my needs",
+        "As a user, I want clear pricing information so that I understand the cost before purchasing",
+        "As a user, I want a secure checkout flow so that my payment information is safe",
+        "As a user, I want immediate credit allocation after purchase so that I can start using the service right away",
+        "As a user, I want to see my purchase history so that I can track my spending and for tax purposes"
+      ],
+      "acceptanceCriteria": [
+        "Pricing page displays at least 3 credit package options with clear pricing",
+        "Each package shows: credit amount, price, price per credit, percentage savings",
+        "Clicking 'Buy Now' initiates Stripe Checkout session",
+        "Successful payment redirects to dashboard with success message showing credits added",
+        "Failed payment redirects to pricing page with error message",
+        "Credits are allocated to user account within 1 minute of successful payment",
+        "Purchase history page shows all transactions with date, amount, credits, status",
+        "Pricing page is accessible from navbar and dashboard 'Buy Credits' button",
+        "Mobile-responsive pricing cards"
+      ],
+      "implementation": {
+        "backend": "Create /app/api/checkout/route.ts POST endpoint that creates Stripe Checkout session with package metadata (creditAmount, price). Define credit packages in /lib/stripe/packages.ts constant. Update webhook handler to read package metadata from session and allocate credits. Create /app/api/purchases/route.ts GET endpoint to fetch user's purchase history. Add StripeCheckout model to track sessions. Update Credits model to reference purchase transaction.",
+        "frontend": "Create /app/credits/page.tsx with pricing card grid showing packages. Each card displays badge (e.g., 'Most Popular'), credit amount, price, list of benefits, and 'Buy Now' button. Create /app/purchases/page.tsx for transaction history. Add loading states during checkout initiation. Implement success/cancel URL parameters handling in /app/credits/success and /app/credits/cancel routes. Update navbar to include 'Buy Credits' link. Update dashboard credit balance component to link to pricing page.",
+        "database": "Add Purchase model: id, userId, stripeSessionId, stripePaymentIntentId, amount (cents), credits, status (pending/completed/failed/refunded), metadata (json), createdAt, completedAt. Add index on userId and createdAt. Add relation from User to Purchase."
+      },
+      "riceScore": {
+        "reach": 100,
+        "impact": 100,
+        "confidence": 90,
+        "effort": 45,
+        "score": 200.0
+      },
+      "priority": "P0",
+      "estimatedHours": 36
+    },
+    {
+      "id": "IMP-007",
+      "category": "UX",
+      "title": "Add comprehensive loading and error states",
+      "problem": "The application lacks loading indicators and error states for async operations, creating a poor user experience. Users see blank screens during data fetching with no feedback that something is happening. When operations fail, there's no error message or retry option. Upload operations have no progress indicators, leaving users uncertain if large files are uploading. This creates perception of poor performance and unreliability.",
+      "solution": "Implement comprehensive loading and error states throughout the application: (1) Add loading skeletons for list views (videos, trainers, feedback), (2) Add spinners for button actions, (3) Implement upload progress bars using XMLHttpRequest progress events, (4) Add error states with retry buttons and helpful messages, (5) Use React Suspense with fallbacks where appropriate, (6) Add optimistic updates with React Query for better perceived performance, (7) Implement empty states with actionable CTAs.",
+      "userStories": [
+        "As a user, I want to see loading indicators so that I know the app is working and haven't lost connection",
+        "As a user, I want to see upload progress so that I know how long to wait and can verify the upload is working",
+        "As a user, I want clear error messages when something fails so that I know what went wrong",
+        "As a user, I want retry buttons for failed operations so that I can recover from temporary issues without reloading the page",
+        "As a user, I want empty states with guidance so that I know what to do when I have no content yet"
+      ],
+      "acceptanceCriteria": [
+        "All data fetching operations show skeleton loaders during initial load",
+        "Refetching shows subtle loading indicator without removing existing content",
+        "Button actions show spinner and are disabled during processing",
+        "File uploads show progress bar with percentage and estimated time remaining",
+        "Successful operations show brief success toast notification",
+        "Failed operations show error message with retry button",
+        "Empty states show helpful message and CTA button (e.g., 'Upload your first video')",
+        "Loading states are consistent across the entire application",
+        "Skeleton loaders match the shape of actual content for smooth transition"
+      ],
+      "implementation": {
+        "backend": "Add optional delay to API routes in development to test loading states. No other backend changes needed.",
+        "frontend": "Create /components/ui/Skeleton.tsx for loading skeletons. Create /components/ui/EmptyState.tsx for empty content. Create /components/ui/ErrorState.tsx for errors with retry. Install and configure sonner for toast notifications. Update all pages using useQuery to show isPending/isError states. Create /components/VideoListSkeleton.tsx, /components/TrainerCardSkeleton.tsx. Update UploadForm to track upload progress using XMLHttpRequest onprogress. Add ProgressBar component showing percentage. Wrap data-dependent sections in Suspense with skeleton fallbacks. Implement optimistic updates in React Query mutations.",
+        "database": "None"
+      },
+      "riceScore": {
+        "reach": 100,
+        "impact": 85,
+        "confidence": 90,
+        "effort": 40,
+        "score": 191.25
+      },
+      "priority": "P1",
+      "estimatedHours": 32
+    },
+    {
+      "id": "IMP-008",
+      "category": "Feature",
+      "title": "Implement timestamped video comments",
+      "problem": "The landing page prominently advertises 'timestamped comments' as a key feature that differentiates FormFit Coach from competitors. However, this feature is completely unimplemented. Trainers can only provide general feedback text, not comments linked to specific moments in the video. This is a critical missing feature that's literally promised on the marketing page, representing false advertising and a major competitive advantage that's unrealized.",
+      "solution": "Implement a timestamped comment system where trainers can add comments at specific video timestamps while providing feedback. Add UI in the video player to mark timestamps and attach comments. Display comments as a timeline or list with timestamp links that jump the video to that moment when clicked. Allow multiple comments per video at different timestamps. Store comments with format: timestamp (seconds), comment text, created timestamp. Show comment markers on video timeline scrubber.",
+      "userStories": [
+        "As a trainer, I want to add comments at specific video timestamps so that I can provide detailed, moment-specific feedback",
+        "As a trainer, I want to mark multiple points in a video so that I can address several form issues",
+        "As a user, I want to click on timestamped comments so that I can jump directly to the moment the trainer is discussing",
+        "As a user, I want to see comment markers on the video timeline so that I can quickly see which parts have feedback",
+        "As a trainer, I want to edit or delete my timestamped comments before submitting feedback so that I can refine my analysis"
+      ],
+      "acceptanceCriteria": [
+        "Trainer can pause video and click 'Add Comment' button to create timestamped comment",
+        "Comment form pre-fills current video timestamp",
+        "Trainer can manually edit timestamp if needed",
+        "Comments display in chronological order with timestamp in mm:ss format",
+        "Clicking a comment jumps video to that timestamp",
+        "Comment markers appear on video timeline scrubber",
+        "Trainer can edit or delete comments before final submission",
+        "User sees all timestamped comments in their feedback view",
+        "Comments are preserved with video feedback and included in email notifications",
+        "Minimum 1 comment required for feedback submission (ensure quality)"
+      ],
+      "implementation": {
+        "backend": "Create FeedbackComment model in Prisma schema: id, feedbackId (relation to Feedback), timestamp (integer seconds), comment (text), createdAt, updatedAt. Add cascade delete on Feedback deletion. Update /app/api/feedback/route.ts POST to accept comments array. Add /app/api/feedback/[id]/comments endpoint for CRUD operations on comments. Update feedback email template to include timestamped comments formatted nicely.",
+        "frontend": "Update VideoPlayer component to include 'Add Comment at Current Time' button. Create /components/TimestampedCommentForm.tsx for adding/editing comments. Create /components/TimestampedCommentList.tsx showing all comments with click-to-jump functionality. Add visual markers on video timeline using absolutely positioned elements. Implement state management for draft comments (stored in component state until feedback submission). Update TrainerFeedbackPage to include comment management UI. Style comments with timestamp badges and edit/delete buttons. On user feedback view, display comments as interactive elements that control video playback.",
+        "database": "Add FeedbackComment model: id, feedbackId (Int, relation), timestamp (Int), comment (String @db.Text), createdAt, updatedAt. Add relation in Feedback model: comments FeedbackComment[]. Add index on (feedbackId, timestamp) for efficient retrieval."
+      },
+      "riceScore": {
+        "reach": 100,
+        "impact": 95,
+        "confidence": 80,
+        "effort": 60,
+        "score": 126.67
+      },
+      "priority": "P1",
+      "estimatedHours": 48
+    },
+    {
+      "id": "IMP-009",
+      "category": "Performance",
+      "title": "Add pagination and infinite scroll to list pages",
+      "problem": "All list views (videos, feedback, trainers) use simple 'take' limits without pagination, which will cause severe performance and UX issues at scale. The dashboard limits to 10 videos with no way to see older uploads. As users accumulate hundreds of videos or trainers register by the hundreds, queries will become slow and users can't access all data. Database queries fetch all related data without pagination, creating N+1 query problems.",
+      "solution": "Implement cursor-based pagination for all list endpoints using Prisma's cursor pagination. On the frontend, implement infinite scroll using React Query's infinite queries with intersection observer. For trainers page, implement traditional page-based pagination with page numbers. Add 'Load More' buttons as fallback for users who prefer explicit loading. Optimize queries to fetch only necessary fields and implement proper indexing.",
+      "userStories": [
+        "As a user with many videos, I want to scroll through all my uploads so that I can access my entire history",
+        "As a trainer, I want to browse all available review requests so that I can choose which ones to accept",
+        "As a user, I want pages to load quickly even with hundreds of videos in the system so that the app feels responsive",
+        "As a platform with thousands of users, I want efficient database queries so that server costs remain manageable"
+      ],
+      "acceptanceCriteria": [
+        "Dashboard videos use infinite scroll, loading 20 videos at a time",
+        "Scrolling to bottom automatically loads next page of videos",
+        "Loading indicator shows while fetching more data",
+        "Trainer listing page shows 30 trainers per page with page number navigation",
+        "Cursor-based pagination prevents duplicate or skipped items",
+        "API endpoints accept cursor and limit parameters",
+        "Empty state shows when no more items to load",
+        "Scroll position is preserved when navigating back to list pages",
+        "Database queries use proper indexes for pagination fields"
+      ],
+      "implementation": {
+        "backend": "Update /app/api/videos/route.ts to accept 'cursor' and 'limit' query params. Implement Prisma cursor-based pagination using id field: await prisma.video.findMany({ take: limit, skip: cursor ? 1 : 0, cursor: cursor ? { id: cursor } : undefined, orderBy: { createdAt: 'desc' } }). Return { videos, nextCursor }. Apply same pattern to /app/api/feedback/route.ts and /app/api/trainers/route.ts. Add database indexes on createdAt for videos and feedback, on rating for trainers. Optimize queries using select() to fetch only displayed fields.",
+        "frontend": "Install @tanstack/react-query. Update video list to use useInfiniteQuery with getNextPageParam extracting nextCursor. Implement intersection observer on sentinel element at list bottom to trigger fetchNextPage. Add 'Loading more...' indicator. Create reusable /components/InfiniteList.tsx component. For trainers page, implement page-based pagination using searchParams. Add PageNavigation component with prev/next buttons and page numbers. Update list components to handle loading and hasNextPage states.",
+        "database": "Add indexes: CREATE INDEX idx_videos_user_created ON Video(userId, createdAt DESC); CREATE INDEX idx_feedback_video_created ON Feedback(videoId, createdAt DESC); CREATE INDEX idx_trainers_rating ON Trainer(rating DESC, userId);"
+      },
+      "riceScore": {
+        "reach": 90,
+        "impact": 85,
+        "confidence": 90,
+        "effort": 40,
+        "score": 172.13
+      },
+      "priority": "P1",
+      "estimatedHours": 32
+    },
+    {
+      "id": "IMP-010",
+      "category": "Feature",
+      "title": "Implement email verification and password reset",
+      "problem": "Users can register with any email address without verification, leading to fake accounts, typos preventing access, and spam registrations. There's no password reset functionality, so users who forget passwords are permanently locked out and must create new accounts, losing all their data. These are essential security and UX features that should never ship to production without implementation.",
+      "solution": "Implement email verification flow: after registration, send verification email with token link. Users must verify email before uploading videos (can browse, but upload is blocked). Add password reset flow: user requests reset, receives email with time-limited token, creates new password. Store verification and reset tokens in database with expiration. Add UI for resending verification emails and displaying verification status.",
+      "userStories": [
+        "As a new user, I want to verify my email address so that I can prove I own the account",
+        "As a user who forgot my password, I want to reset it via email so that I can regain access to my account",
+        "As a platform operator, I want email verification to prevent spam accounts and ensure we can contact users",
+        "As a user with a typo in my email, I want clear error messages so that I can re-register with the correct email"
+      ],
+      "acceptanceCriteria": [
+        "After registration, user receives verification email within 1 minute",
+        "Email contains unique token link valid for 24 hours",
+        "Clicking verification link marks email as verified and shows success message",
+        "Unverified users see banner prompting email verification",
+        "Unverified users cannot upload videos (receive clear error message)",
+        "Forgot password link on login page initiates reset flow",
+        "Password reset email sent with token valid for 1 hour",
+        "Reset form validates new password strength (min 8 chars, mix of types)",
+        "Successful reset invalidates old tokens and allows immediate login",
+        "Users can request new verification or reset email if token expired"
+      ],
+      "implementation": {
+        "backend": "Add emailVerified (Boolean, default false), verificationToken (String, optional), verificationTokenExpiry (DateTime, optional), resetToken (String, optional), resetTokenExpiry (DateTime, optional) to User model. Create /app/api/auth/verify-email/route.ts POST to send verification email with token. Create /app/api/auth/verify/[token]/route.ts GET to verify token and mark email verified. Create /app/api/auth/forgot-password/route.ts POST to send reset email. Create /app/api/auth/reset-password/route.ts POST to validate token and update password. Update /app/api/videos/route.ts POST to check emailVerified before allowing uploads. Add email templates for verification and reset in /lib/email/templates/. Generate secure random tokens using crypto.randomBytes(32).toString('hex').",
+        "frontend": "Add 'Forgot Password?' link on login page. Create /app/verify/[token]/page.tsx for email verification landing. Create /app/forgot-password/page.tsx with email input form. Create /app/reset-password/[token]/page.tsx with new password form. Add EmailVerificationBanner component shown on dashboard when !emailVerified. Add 'Resend Verification Email' button in banner. Update upload page to show modal blocking upload if not verified. Add success/error toasts for all operations.",
+        "database": "Alter User model to add: emailVerified Boolean @default(false), verificationToken String?, verificationTokenExpiry DateTime?, resetToken String?, resetTokenExpiry DateTime?. Add index on verificationToken and resetToken for fast lookups."
+      },
+      "riceScore": {
+        "reach": 100,
+        "impact": 90,
+        "confidence": 95,
+        "effort": 45,
+        "score": 189.0
+      },
+      "priority": "P1",
+      "estimatedHours": 36
+    },
+    {
+      "id": "IMP-011",
+      "category": "Feature",
+      "title": "Build user profile and settings page",
+      "problem": "Users cannot update any of their account information after registration. There's no way to change name, email, password, or any preferences. Trainers cannot edit their bio, specialties, certifications, or hourly rate after initial setup. This is a fundamental missing feature that reduces platform flexibility and forces users to contact support for basic account management tasks.",
+      "solution": "Create comprehensive settings page with sections for: Profile (name, email), Security (change password, 2FA in future), Preferences (email notifications, timezone), and for trainers: Professional Info (bio, specialties, certifications, hourly rate, availability). Implement form validation, optimistic updates, and success feedback. Allow email changes with re-verification requirement.",
+      "userStories": [
+        "As a user, I want to update my profile information so that my account reflects my current details",
+        "As a user, I want to change my password so that I can maintain account security",
+        "As a trainer, I want to update my bio and specialties so that users see accurate information when selecting me",
+        "As a trainer, I want to adjust my hourly rate so that I'm compensated fairly as I gain experience",
+        "As a user, I want to control email notification preferences so that I only receive relevant communications"
+      ],
+      "acceptanceCriteria": [
+        "Settings page accessible from navbar dropdown menu",
+        "Profile section allows updating name with real-time validation",
+        "Email change requires new email verification before taking effect",
+        "Password change requires current password confirmation",
+        "Password strength indicator shows weak/medium/strong",
+        "Trainer profile section allows editing bio (500 char limit), specialties (multi-select), certifications (upload), hourly rate",
+        "Changes are saved immediately with optimistic updates and success toast",
+        "Failed saves show error message and revert optimistic update",
+        "All fields show character counts where limits exist",
+        "Mobile-responsive layout with collapsible sections"
+      ],
+      "implementation": {
+        "backend": "Create /app/api/user/profile/route.ts PATCH for updating name. Create /app/api/user/email/route.ts POST for email change (sends verification to new email). Create /app/api/user/password/route.ts PATCH for password change (requires current password). Create /app/api/trainer/profile/route.ts PATCH for trainer-specific fields. Add validation using Zod schemas. Hash passwords with bcrypt before storage. Implement rate limiting on password change endpoint (max 3 per hour).",
+        "frontend": "Create /app/settings/page.tsx with tabbed interface (Profile, Security, Preferences, [Trainer Info if role=TRAINER]). Create /components/settings/ProfileSection.tsx, SecuritySection.tsx, PreferencesSection.tsx, TrainerProfileSection.tsx. Use react-hook-form for form management and validation. Implement auto-save with debounce (save 1 second after user stops typing) or explicit Save buttons based on UX testing. Add password strength validator component. Add specialty multi-select using react-select or shadcn/ui combobox. Style consistently with rest of app.",
+        "database": "Add preferences field to User model: preferences Json? @default(\"{}\") to store notification preferences. Consider adding lastEmailChangeAt DateTime? to prevent abuse. No other schema changes needed as existing fields (name, email) and Trainer fields (bio, specialties, rate) already exist."
+      },
+      "riceScore": {
+        "reach": 100,
+        "impact": 75,
+        "confidence": 90,
+        "effort": 40,
+        "score": 168.75
+      },
+      "priority": "P1",
+      "estimatedHours": 32
+    },
+    {
+      "id": "IMP-012",
+      "category": "Bug Fix",
+      "title": "Fix Trainer relation queries in feedback routes",
+      "problem": "In /app/api/feedback/route.ts lines 28-31, the code attempts to access 'name' and 'role' fields directly on the Trainer model, but these fields don't exist there - they're on the related User model. This will cause runtime errors whenever feedback is fetched. The query is: trainer: { select: { name: true, role: true } } but should be trainer: { select: { user: { select: { name: true } } } }. This is a critical bug that breaks the feedback listing functionality.",
+      "solution": "Fix the Prisma query to properly access nested User fields through the Trainer relation. Update all instances where Trainer data is fetched to use correct relation path. Add type checking to ensure queries match schema. Test all affected endpoints to ensure data is returned correctly.",
+      "userStories": [
+        "As a user, I want to view my feedback without errors so that I can see trainer comments",
+        "As a developer, I want type-safe database queries so that schema mismatches are caught at compile time",
+        "As a trainer, I want my name to display correctly on feedback so that users know who provided the review"
+      ],
+      "acceptanceCriteria": [
+        "Feedback API endpoint returns data without runtime errors",
+        "Trainer name displays correctly in feedback list",
+        "TypeScript types correctly reflect Prisma schema relationships",
+        "All feedback-related queries use correct relation paths",
+        "Test coverage added to prevent regression"
+      ],
+      "implementation": {
+        "backend": "Update /app/api/feedback/route.ts query to: trainer: { select: { user: { select: { name: true } }, specialties: true, rating: true } }. Review and fix similar issues in other routes that query Trainer relations. Run prisma generate to ensure types are up to date. Add validation in development to warn about invalid field access.",
+        "frontend": "Update TypeScript interfaces to match corrected API response shape. Update components that display trainer info to access nested user.name instead of name directly.",
+        "database": "None - this is a query fix, not a schema change."
+      },
+      "riceScore": {
+        "reach": 100,
+        "impact": 100,
+        "confidence": 100,
+        "effort": 10,
+        "score": 1000.0
+      },
+      "priority": "P0",
+      "estimatedHours": 8
+    },
+    {
+      "id": "IMP-013",
+      "category": "UX",
+      "title": "Add real-time notification system",
+      "problem": "Users have no way to know when trainers complete feedback without manually checking the dashboard. Trainers don't know when new video review requests are assigned to them. There's no feedback for successful actions like uploads or purchases. This creates a passive, check-back-later experience instead of an engaging, real-time platform. Users may miss time-sensitive information and become disengaged.",
+      "solution": "Implement multi-channel notification system: (1) Toast notifications for immediate feedback on user actions (upload success, purchase complete, etc.), (2) In-app notification bell icon in navbar showing unread count, (3) Email notifications for important events (feedback ready, new assignment for trainers), (4) Future: Push notifications for mobile. Store notifications in database for persistence. Implement polling or WebSocket for real-time updates.",
+      "userStories": [
+        "As a user, I want to be notified when my feedback is ready so that I can review it immediately",
+        "As a trainer, I want to be notified when new videos are assigned to me so that I can provide timely feedback",
+        "As a user, I want immediate feedback when I complete actions so that I know they were successful",
+        "As a user, I want to see a history of notifications so that I can review past alerts I may have missed",
+        "As a user, I want to control which notifications I receive so that I'm not overwhelmed"
+      ],
+      "acceptanceCriteria": [
+        "Toast notifications appear for: successful upload, purchase complete, feedback received, settings saved",
+        "Notification bell icon in navbar shows unread count badge",
+        "Clicking bell opens dropdown with recent notifications (last 10)",
+        "Notifications include: icon, message, timestamp, link to relevant page, read/unread status",
+        "Clicking notification marks it as read and navigates to relevant page",
+        "'Mark all as read' button in dropdown",
+        "Email sent when feedback is completed (to user) or video assigned (to trainer)",
+        "Notifications persist in database and sync across devices/sessions",
+        "Notification preferences in settings page control which emails are sent"
+      ],
+      "implementation": {
+        "backend": "Create Notification model: id, userId, type (enum: FEEDBACK_READY, VIDEO_ASSIGNED, UPLOAD_SUCCESS, PURCHASE_COMPLETE), title, message, link (optional), read (Boolean, default false), createdAt. Create /app/api/notifications/route.ts GET (list) and PATCH (mark read). Add /app/api/notifications/[id]/read/route.ts PATCH. Create notification service in /lib/notifications/create.ts that inserts notification and optionally sends email based on user preferences. Integrate notification creation into: feedback completion handler, video upload handler, purchase webhook handler, trainer assignment logic. Implement polling endpoint /app/api/notifications/poll that returns count of unread.",
+        "frontend": "Install sonner for toast notifications. Create /components/NotificationBell.tsx with bell icon, unread badge, and dropdown. Use Radix UI Dropdown Menu for notification list. Poll notifications endpoint every 30 seconds using useQuery with refetchInterval. Display toast on new notifications. Create /app/notifications/page.tsx for full notification history. Add sound/vibration on new notification (optional, user preference). Style notifications with appropriate icons for each type.",
+        "database": "Add Notification model: id, userId (Int, relation), type (String or Enum), title (String), message (String), link (String?), read (Boolean @default(false)), createdAt. Add relation in User model: notifications Notification[]. Add indexes on (userId, read, createdAt) for efficient querying."
+      },
+      "riceScore": {
+        "reach": 100,
+        "impact": 80,
+        "confidence": 85,
+        "effort": 45,
+        "score": 151.11
+      },
+      "priority": "P1",
+      "estimatedHours": 36
+    },
+    {
+      "id": "IMP-014",
+      "category": "Feature",
+      "title": "Implement trainer rating and review system",
+      "problem": "Users have no way to rate trainers or provide feedback about the quality of reviews they received. The trainer.rating field exists but is never updated from its default value of 0. There's no review system, making it impossible for users to make informed decisions when selecting trainers. High-quality trainers aren't rewarded, and poor-quality trainers aren't identified, creating no incentive for quality.",
+      "solution": "After user receives feedback, prompt them to rate the trainer (1-5 stars) and optionally write a text review. Store ratings and reviews in database. Calculate average rating for each trainer and update trainer.rating field. Display ratings prominently on trainer cards and profiles. Show recent reviews on trainer profile pages. Implement 'verified review' badge for ratings from users who actually received feedback from that trainer.",
+      "userStories": [
+        "As a user, I want to rate my trainer after receiving feedback so that I can help other users make informed choices",
+        "As a user, I want to read reviews from other users before selecting a trainer so that I can choose the best fit for my needs",
+        "As a trainer, I want to see my rating and reviews so that I can understand my performance and improve",
+        "As a platform operator, I want high-quality trainers to be rewarded with visibility so that overall platform quality improves"
+      ],
+      "acceptanceCriteria": [
+        "After feedback is marked complete, user sees 'Rate this trainer' prompt in notification and on feedback page",
+        "Rating modal allows 1-5 star selection with optional text review (max 500 chars)",
+        "Users can only rate trainers they've actually received feedback from (verified)",
+        "Submitting rating updates trainer's average rating in real-time",
+        "Trainer cards display star rating and review count (e.g., '4.8 (32 reviews)')",
+        "Trainer profile page shows recent reviews with star rating, review text, date, and username",
+        "Reviews can be sorted by most recent or highest/lowest rating",
+        "Users can edit their reviews within 7 days of submission",
+        "Ratings older than 1 year weigh less in average calculation (recency bias)"
+      ],
+      "implementation": {
+        "backend": "Create TrainerReview model: id, trainerId, userId, feedbackId (to verify legitimacy), rating (Int 1-5), review (String, optional), createdAt, updatedAt. Add unique constraint on (userId, feedbackId) - one review per feedback. Create /app/api/trainers/[id]/reviews/route.ts GET (list reviews), POST (create review). Add /app/api/reviews/[id]/route.ts PATCH (edit own review). Implement weighted average calculation in /lib/trainers/calculateRating.ts considering recency. Update trainer.rating via cron job or real-time after each review. Add /app/api/feedback/[id]/rate endpoint specifically for rating after feedback.",
+        "frontend": "Create /components/RatingModal.tsx with star selector (react-rating or custom) and text area. Show modal when user views completed feedback for first time. Create /components/StarRating.tsx display component for showing ratings. Update TrainerCard to show rating and review count. Create /app/trainers/[id]/reviews tab showing all reviews with sorting options. Add edit button on user's own reviews. Implement optimistic updates when submitting rating.",
+        "database": "Add TrainerReview model: id, trainerId (Int, relation to Trainer), userId (Int, relation to User), feedbackId (Int, relation to Feedback), rating (Int), review (String? @db.Text), createdAt, updatedAt. Add unique constraint @@unique([userId, feedbackId]). Add indexes on trainerId and createdAt. Add relations: Trainer.reviews TrainerReview[], User.reviews TrainerReview[]."
+      },
+      "riceScore": {
+        "reach": 90,
+        "impact": 85,
+        "confidence": 85,
+        "effort": 40,
+        "score": 162.56
+      },
+      "priority": "P1",
+      "estimatedHours": 32
+    },
+    {
+      "id": "IMP-015",
+      "category": "Feature",
+      "title": "Add video management features (edit, delete, privacy)",
+      "problem": "Users cannot edit video titles/descriptions after upload, cannot delete videos they no longer want on the platform, and have no privacy controls. Once uploaded, videos are permanent unless a developer manually removes them from the database and S3. This lack of control over their own content is a significant UX gap and potential privacy concern.",
+      "solution": "Add video management capabilities: (1) Edit video title, description, and workout type, (2) Delete videos with confirmation dialog, (3) Privacy settings (private/public for future social features), (4) Implement proper cascade deletes that remove video record AND S3 file. Add confirmation modals for destructive actions. Show video details page with edit options.",
+      "userStories": [
+        "As a user, I want to edit my video details so that I can fix typos or update descriptions",
+        "As a user, I want to delete videos I no longer need so that my dashboard stays organized",
+        "As a user, I want confirmation before deleting so that I don't accidentally lose important videos",
+        "As a developer, I want cascade deletes to clean up S3 files so that we don't accumulate orphaned files and storage costs",
+        "As a user, I want privacy controls so that I can decide who can view my videos in future social features"
+      ],
+      "acceptanceCriteria": [
+        "Each video card shows edit and delete icons/buttons",
+        "Clicking edit opens modal or inline form for editing title, description, workoutType",
+        "Changes save immediately with optimistic update",
+        "Delete button shows confirmation modal with video title and 'Are you sure?' message",
+        "Confirmed deletion removes database record AND deletes S3 file",
+        "Cannot delete videos that have associated feedback (or cascade to feedback with warning)",
+        "Privacy toggle allows setting video as private/public (stored but not enforced yet)",
+        "Success toast shown after edit/delete",
+        "Deleted videos immediately removed from UI",
+        "Failed deletes show error message and don't remove from UI"
+      ],
+      "implementation": {
+        "backend": "Create /app/api/videos/[id]/route.ts PATCH (update title/description/workoutType/privacy) and DELETE. In DELETE handler: (1) verify ownership, (2) check for existing feedback and handle accordingly (prevent delete or cascade), (3) delete S3 file using AWS SDK deleteObject, (4) delete database record. Add proper error handling for S3 failures. Implement transaction if cascading to feedback. Add validation in PATCH to ensure title is not empty, description is reasonable length.",
+        "frontend": "Add edit and delete icons to VideoCard component. Create /components/EditVideoModal.tsx with form for title, description, workoutType select, privacy toggle. Create /components/ConfirmDeleteModal.tsx reusable component. Implement delete mutation with onSuccess callback to remove from React Query cache. Add optimistic updates for edit. Show loading states during save/delete. Handle edge cases like deleting currently viewed video (redirect to dashboard).",
+        "database": "Add privacy field to Video model: privacy String @default('private') (values: 'private', 'public'). Update cascade delete behavior: feedback Feedback[] @relation(onDelete: Cascade) if decided to allow deletion with feedback, or @relation(onDelete: Restrict) to prevent."
+      },
+      "riceScore": {
+        "reach": 100,
+        "impact": 70,
+        "confidence": 95,
+        "effort": 35,
+        "score": 190.0
+      },
+      "priority": "P2",
+      "estimatedHours": 28
+    },
+    {
+      "id": "IMP-016",
+      "category": "Performance",
+      "title": "Optimize database queries and add caching",
+      "problem": "Database queries fetch entire objects instead of selecting specific fields, causing over-fetching. Trainer listings and user credits are queried on every page load without caching. No Redis or in-memory caching layer exists. Prisma queries don't use select() optimization. This results in unnecessary database load, slower response times, and higher hosting costs. As the platform scales, these inefficiencies will compound.",
+      "solution": "Implement Redis caching for frequently accessed, rarely changing data (trainer listings, user profile info). Optimize all Prisma queries to use select() and only fetch needed fields. Add database indexes on commonly filtered columns (createdAt on videos/feedback, rating on trainers). Implement cache invalidation strategies. Add query result caching with TTL. Use Prisma's query optimization features.",
+      "userStories": [
+        "As a user, I want pages to load quickly so that I have a smooth browsing experience",
+        "As a platform operator, I want optimized queries so that we can handle more users without expensive database upgrades",
+        "As a developer, I want caching infrastructure so that frequently accessed data doesn't hit the database unnecessarily",
+        "As a platform at scale, I want efficient resource usage so that hosting costs stay manageable"
+      ],
+      "acceptanceCriteria": [
+        "Trainer listings are cached in Redis with 5-minute TTL",
+        "User profile data cached per session with smart invalidation on updates",
+        "All Prisma queries use select() to fetch only required fields",
+        "Database response times improve by >40% for list queries",
+        "Cache hit rate >70% for trainer listings within first month",
+        "Cache invalidation works correctly when data is updated",
+        "Database indexes created for: (userId, createdAt) on videos, (videoId, status) on feedback, (rating) on trainers",
+        "Query logging shows reduced data transfer from database"
+      ],
+      "implementation": {
+        "backend": "Install @upstash/redis or ioredis. Create /lib/cache.ts wrapper with get/set/invalidate functions. Implement cache keys strategy (e.g., 'trainers:list', 'user:{id}:profile'). Update /app/api/trainers/route.ts to check cache before querying DB. Update all queries to use select(): .findMany({ select: { id: true, title: true, createdAt: true } }). Remove unnecessary includes that fetch related data not displayed. Add database indexes via Prisma migration. Implement cache invalidation in mutation endpoints (when trainer updates profile, invalidate 'trainers:list'). Add caching middleware for API routes. Set appropriate TTLs: short (1-5 min) for frequently changing data, long (1 hour) for static data.",
+        "frontend": "No changes needed - caching is transparent to frontend. React Query already provides client-side caching.",
+        "database": "Create migration to add indexes: CREATE INDEX idx_videos_user_created ON Video(userId, createdAt DESC); CREATE INDEX idx_feedback_video_status ON Feedback(videoId, status); CREATE INDEX idx_trainers_rating ON Trainer(rating DESC); Run ANALYZE on production database after index creation."
+      },
+      "riceScore": {
+        "reach": 80,
+        "impact": 75,
+        "confidence": 85,
+        "effort": 55,
+        "score": 92.73
+      },
+      "priority": "P2",
+      "estimatedHours": 44
+    },
+    {
+      "id": "IMP-017",
+      "category": "UX",
+      "title": "Create comprehensive onboarding flow",
+      "problem": "New users are dropped into an empty dashboard with no guidance, leading to confusion and likely high drop-off rates. There's no explanation of how the platform works, no tutorial for first video upload, no guidance on selecting trainers. New trainers don't have a setup wizard for profile completion. This creates a poor first impression and reduces activation rates.",
+      "solution": "Design multi-step onboarding flow: For users: (1) Welcome screen explaining platform, (2) Profile completion wizard, (3) Guided tour of dashboard features, (4) Tutorial for first video upload with sample video option, (5) Trainer selection guide with explanations. For trainers: (1) Welcome and certification upload, (2) Profile setup wizard (bio, specialties, rate), (3) Payment/payout configuration, (4) Training on providing quality feedback. Use progress indicators and allow skipping for experienced users.",
+      "userStories": [
+        "As a new user, I want a guided tour so that I understand how to use the platform effectively",
+        "As a new user, I want help uploading my first video so that I don't get stuck and frustrated",
+        "As a new trainer, I want guidance on setting up my profile so that I can start receiving review requests quickly",
+        "As a platform operator, I want structured onboarding so that activation and retention rates improve",
+        "As a returning user, I want to skip onboarding so that I'm not forced through tutorials I don't need"
+      ],
+      "acceptanceCriteria": [
+        "First-time users see welcome modal with platform overview and 'Start Tour' or 'Skip' options",
+        "Tour highlights key features: upload button, credit balance, trainer selection, feedback viewing",
+        "Profile completion wizard prompts for: fitness goals, experience level, preferred workout types",
+        "First upload shows tooltips explaining each field and recommending good video practices",
+        "Trainer onboarding includes: certification upload step, bio/specialty setup, sample feedback to review",
+        "Progress bar shows onboarding completion percentage",
+        "Users can dismiss/skip at any time with 'Complete onboarding' link in settings if they change mind",
+        "Onboarding state tracked per user, not shown again after completion",
+        "Mobile-optimized onboarding flow"
+      ],
+      "implementation": {
+        "backend": "Add onboardingCompleted Boolean @default(false) to User model. Add onboardingStep String? to track current step. Create /app/api/user/onboarding/route.ts PATCH to update completion status and current step. Track whether user has uploaded first video, selected first trainer, received first feedback as completion milestones.",
+        "frontend": "Install react-joyride or similar tour library. Create /components/onboarding/WelcomeModal.tsx, /components/onboarding/ProfileWizard.tsx, /components/onboarding/UploadTutorial.tsx. Implement step-by-step wizard using state machine or simple step counter. Show in dashboard on first login if !onboardingCompleted. Add 'Resume Onboarding' button in settings if partially complete. Create highlight overlays for tour steps. Add celebration animation on completion. Implement skip functionality with confirmation ('Are you sure? This helps you get started').",
+        "database": "Add to User model: onboardingCompleted Boolean @default(false), onboardingStep String?, fitnessGoals String?, experienceLevel String?, preferredWorkoutTypes String[] @default([])."
+      },
+      "riceScore": {
+        "reach": 100,
+        "impact": 80,
+        "confidence": 75,
+        "effort": 60,
+        "score": 100.0
+      },
+      "priority": "P2",
+      "estimatedHours": 48
+    },
+    {
+      "id": "IMP-018",
+      "category": "Feature",
+      "title": "Build admin dashboard for platform management",
+      "problem": "There's no way for platform administrators to manage users, verify trainers, view analytics, moderate content, or process refunds. All administrative tasks require direct database access, which is slow, error-prone, and insecure. As the platform grows, manual database management becomes untenable. Essential platform operations are blocked without proper admin tools.",
+      "solution": "Create comprehensive admin dashboard accessible only to users with admin role: (1) User management: view all users, search/filter, ban/suspend accounts, view user activity, (2) Trainer verification: review certification uploads, approve/reject trainers, (3) Analytics: revenue metrics, user growth, feedback completion rates, popular trainers, (4) Content moderation: flag inappropriate videos/feedback, (5) Support: view and respond to support tickets, process refunds, (6) Platform settings: update credit packages, platform fees, email templates.",
+      "userStories": [
+        "As an admin, I want to view all users and their activity so that I can manage the platform effectively",
+        "As an admin, I want to verify trainer certifications so that only qualified trainers provide feedback",
+        "As an admin, I want to see platform analytics so that I can make data-driven business decisions",
+        "As an admin, I want to moderate content so that the platform remains professional and safe",
+        "As an admin, I want to process refunds easily so that customer support is efficient"
+      ],
+      "acceptanceCriteria": [
+        "Admin dashboard accessible at /admin route, protected by role check",
+        "Non-admin users see 403 error when accessing admin routes",
+        "User management table shows: name, email, role, status, joined date, videos uploaded, credits, with search and filters",
+        "Can view user detail page with full activity history",
+        "Can ban/suspend users with reason field and notification email",
+        "Trainer verification queue shows pending trainers with certification documents",
+        "Can approve/reject trainers with feedback message",
+        "Analytics page shows: total users, active users, revenue (daily/monthly), popular trainers, average feedback rating, completion rates",
+        "Content moderation shows flagged content with ability to remove and notify user",
+        "Refund processing form charges negative amount to user account with audit trail"
+      ],
+      "implementation": {
+        "backend": "Add ADMIN role to User model enum (USER, TRAINER, ADMIN). Create middleware /lib/auth/requireAdmin.ts that checks session user has admin role. Create protected API routes: /app/api/admin/users/route.ts, /app/api/admin/trainers/pending/route.ts, /app/api/admin/analytics/route.ts, /app/api/admin/content/flagged/route.ts. Implement user search using Prisma full-text search or raw SQL. Add user ban/suspend functionality updating user.status field. Create audit log table for admin actions. Implement analytics queries aggregating data from multiple tables. Add refund processing that creates negative credit transaction.",
+        "frontend": "Create /app/admin/layout.tsx with admin navigation sidebar. Create pages: /app/admin/users/page.tsx, /app/admin/trainers/page.tsx, /app/admin/analytics/page.tsx, /app/admin/moderation/page.tsx. Use data tables with sorting, filtering, pagination. Create modal forms for ban/suspend actions. Build analytics dashboard with charts using recharts or similar library. Implement certification document viewer for trainer verification. Add admin guard to layout that checks role and redirects non-admins.",
+        "database": "Add ADMIN to UserRole enum. Add status field to User: status String @default('active') (values: active, suspended, banned). Create AdminAction audit log model: id, adminId (relation to User), action (String), targetType (User/Video/Feedback), targetId (Int), reason (String?), metadata (Json), createdAt."
+      },
+      "riceScore": {
+        "reach": 10,
+        "impact": 90,
+        "confidence": 80,
+        "effort": 70,
+        "score": 10.29
+      },
+      "priority": "P2",
+      "estimatedHours": 56
+    },
+    {
+      "id": "IMP-019",
+      "category": "Feature",
+      "title": "Add search and advanced filtering for trainers",
+      "problem": "Users cannot search for trainers by name or filter by any criteria. With many trainers on the platform, users have to scroll through all trainers manually to find ones matching their needs. No way to filter by specialties, certifications, rating, price range, or availability. This makes trainer selection time-consuming and suboptimal, likely resulting in poor matches and lower satisfaction.",
+      "solution": "Implement comprehensive search and filter system: (1) Text search by trainer name, (2) Filter by specialties (multi-select checkbox), (3) Filter by minimum rating (slider), (4) Filter by price range (slider), (5) Filter by certifications (checkbox), (6) Sort options: highest rated, most reviews, lowest price, highest price, newest. Use Prisma full-text search or integrate Algolia for better search experience. Add filter persistence in URL params for shareability.",
+      "userStories": [
+        "As a user, I want to search for trainers by name so that I can find specific trainers recommended by friends",
+        "As a user, I want to filter by specialty so that I find trainers experienced in my workout type (e.g., powerlifting)",
+        "As a user, I want to filter by rating so that I only see highly-rated trainers",
+        "As a budget-conscious user, I want to filter by price so that I find trainers within my budget",
+        "As a user, I want to sort trainers so that I can see the best options first"
+      ],
+      "acceptanceCriteria": [
+        "Search bar filters trainers by name in real-time as user types",
+        "Specialty filter shows all available specialties with counts",
+        "Rating filter slider from 1-5 stars shows only trainers meeting minimum rating",
+        "Price filter slider shows trainers within selected hourly rate range",
+        "Certification filter shows trainers with specific certifications",
+        "Sort dropdown changes trainer order: 'Highest Rated', 'Most Reviews', 'Lowest Price', 'Highest Price', 'Newest'",
+        "Active filters display as removable tags above results",
+        "'Clear all filters' button resets to default view",
+        "Filter state persists in URL query params for shareable links",
+        "Results update instantly as filters change (no submit button needed)",
+        "Shows count of matching trainers (e.g., '42 trainers found')"
+      ],
+      "implementation": {
+        "backend": "Update /app/api/trainers/route.ts to accept query params: search, specialties[], minRating, minPrice, maxPrice, certifications[], sortBy. Build dynamic Prisma query using where conditions for each filter. Implement full-text search on user.name using Prisma search or raw SQL LIKE. Use AND conditions to combine filters. Implement sorting using orderBy based on sortBy param. Consider adding Algolia integration for better search if budget allows - provides typo tolerance, instant search, faceted filtering.",
+        "frontend": "Add search input at top of trainers page. Create /components/TrainerFilters.tsx component with filter controls. Use Radix UI or shadcn/ui components for sliders, checkboxes, selects. Implement URL state management using useSearchParams and router.push to update URL on filter changes. Parse URL params on page load to restore filter state. Add active filter tags with remove buttons. Show loading skeleton while filters are applying. Add debouncing to search input (300ms) to avoid excessive API calls. Display result count and 'No trainers found' empty state.",
+        "database": "Add indexes to support filtering: CREATE INDEX idx_trainers_rating ON Trainer(rating DESC); CREATE INDEX idx_trainers_hourly_rate ON Trainer(hourlyRate); Consider full-text search index if using PostgreSQL: CREATE INDEX idx_users_name_search ON User USING gin(to_tsvector('english', name));"
+      },
+      "riceScore": {
+        "reach": 90,
+        "impact": 75,
+        "confidence": 85,
+        "effort": 40,
+        "score": 143.44
+      },
+      "priority": "P2",
+      "estimatedHours": 32
+    },
+    {
+      "id": "IMP-020",
+      "category": "Bug Fix",
+      "title": "Implement proper file cleanup for abandoned uploads",
+      "problem": "When users request a presigned URL for video upload but never complete the upload or never create the Video database record, the file remains in S3 forever. Over time, this accumulates storage costs for abandoned partial uploads. There's no cleanup job to identify and remove these orphaned files. This is a slow leak that will increase AWS costs over time.",
+      "solution": "Implement cleanup system: (1) Track all presigned URLs generated with expiration timestamps, (2) Create scheduled job (cron or serverless function) that runs daily/weekly, (3) Identify S3 files that have no corresponding Video record and are older than 48 hours, (4) Delete orphaned files from S3, (5) Log cleanup actions for audit trail. Consider implementing lifecycle rules in S3 for automatic cleanup of old files in specific prefixes.",
+      "userStories": [
+        "As a platform operator, I want orphaned files cleaned up automatically so that storage costs don't balloon unnecessarily",
+        "As a developer, I want visibility into cleanup operations so that I can verify it's working correctly",
+        "As a finance manager, I want optimized S3 usage so that we minimize cloud infrastructure costs"
+      ],
+      "acceptanceCriteria": [
+        "Cleanup job runs automatically on schedule (daily at 3am UTC)",
+        "Job identifies S3 files with no matching Video record",
+        "Only deletes files older than 48 hours (grace period for slow uploads)",
+        "Logs each deleted file with timestamp and reason",
+        "Job reports statistics: files scanned, files deleted, storage freed",
+        "Failures are logged and alerted to developers",
+        "Can manually trigger cleanup job via admin dashboard",
+        "S3 lifecycle rules configured as backup cleanup mechanism"
+      ],
+      "implementation": {
+        "backend": "Create /lib/jobs/cleanupAbandonedUploads.ts function. Use AWS SDK to list all objects in uploads bucket. Query database for Video records matching S3 keys. Identify orphaned files where no Video record exists and file age > 48 hours. Delete orphaned files using deleteObjects batch API. Log results to database in CleanupLog table. Create /app/api/cron/cleanup-uploads/route.ts endpoint protected by cron secret. Set up Vercel Cron or similar to hit endpoint daily. Implement S3 lifecycle rule: transition files in temp-uploads/ prefix to deletion after 7 days. Create /app/api/admin/cleanup/route.ts POST for manual triggering.",
+        "frontend": "Add manual cleanup trigger button in admin dashboard with confirmation modal. Display recent cleanup logs in admin analytics page showing files cleaned up and storage saved.",
+        "database": "Create CleanupLog model: id, jobType (String), filesScanned (Int), filesDeleted (Int), storageFreedBytes (BigInt), errors (Json?), createdAt. Used for tracking and monitoring cleanup operations."
+      },
+      "riceScore": {
+        "reach": 50,
+        "impact": 60,
+        "confidence": 90,
+        "effort": 40,
+        "score": 67.5
+      },
+      "priority": "P2",
+      "estimatedHours": 32
+    },
+    {
+      "id": "IMP-021",
+      "category": "Feature",
+      "title": "Add comprehensive testing infrastructure",
+      "problem": "The application has 0% test coverage with no testing framework configured. This makes refactoring dangerous, increases bug introduction risk, slows down development velocity due to manual testing, and creates technical debt that becomes harder to address over time. Production deployments carry high risk of breaking existing functionality. No CI/CD pipeline ensures code quality before deployment.",
+      "solution": "Set up comprehensive testing infrastructure: (1) Install and configure Vitest/Jest for unit and integration tests, (2) Install React Testing Library for component tests, (3) Install Playwright for E2E tests, (4) Create test database with seed data, (5) Write tests for critical paths: authentication, video upload, feedback submission, payment processing, (6) Set up CI pipeline with GitHub Actions to run tests on every PR, (7) Add test coverage reporting with minimum thresholds (start at 50%, increase gradually).",
+      "userStories": [
+        "As a developer, I want automated tests so that I can refactor code confidently without breaking functionality",
+        "As a platform operator, I want CI/CD with tests so that bugs are caught before reaching production",
+        "As a team lead, I want test coverage visibility so that I can ensure code quality standards are met",
+        "As a developer, I want E2E tests for critical flows so that integration issues are caught early"
+      ],
+      "acceptanceCriteria": [
+        "Vitest configured with TypeScript support and correct module resolution",
+        "Can run 'npm test' to execute all tests",
+        "Test database seeds with sample users, trainers, videos for consistent test environment",
+        "Unit tests exist for: validation functions, auth utilities, Stripe helpers, email formatting",
+        "Integration tests exist for: API routes (auth, videos, feedback, purchases)",
+        "Component tests exist for: critical forms (login, upload, feedback), complex components (video player)",
+        "E2E tests exist for: user registration → upload → trainer selection → feedback receipt flow",
+        "E2E tests exist for: trainer signup → profile setup → receive assignment → submit feedback flow",
+        "CI pipeline runs tests on every PR and blocks merge if tests fail",
+        "Test coverage report generated showing >50% coverage",
+        "Tests run in under 2 minutes for fast feedback"
+      ],
+      "implementation": {
+        "backend": "Install vitest, @testing-library/react, @testing-library/jest-dom, @playwright/test. Create vitest.config.ts with correct path aliases and environment setup. Create /tests/setup.ts for global test configuration. Create /tests/helpers/ with database seeding functions and test utilities. Create DATABASE_URL_TEST environment variable pointing to test database. Write API route tests in /app/api/**/*.test.ts using Vitest and node-mocks-http or MSW. Mock external services (S3, Stripe, email). Create Playwright config with base URL and auth state management. Write E2E tests in /e2e/ directory.",
+        "frontend": "Write component tests in /components/**/*.test.tsx using React Testing Library. Test user interactions, form submissions, error states, loading states. Mock API calls using MSW. Create test utilities for rendering with providers (QueryClient, theme, etc.). Add coverage configuration to vitest.config.ts.",
+        "database": "Create test database schema matching production. Create /prisma/seed-test.ts with comprehensive test data: multiple users, trainers with different specialties and ratings, videos in various states, feedback samples. Add script 'npm run seed:test' to populate test database."
+      },
+      "riceScore": {
+        "reach": 100,
+        "impact": 90,
+        "confidence": 85,
+        "effort": 80,
+        "score": 95.63
+      },
+      "priority": "P1",
+      "estimatedHours": 64
+    },
+    {
+      "id": "IMP-022",
+      "category": "UX",
+      "title": "Improve mobile responsiveness and touch interactions",
+      "problem": "The application has not been tested on mobile devices and likely has significant responsiveness issues. Touch targets may be too small (<44px), forms may be difficult to use on mobile keyboards, navigation may not be optimized for touch, and layout may break at various breakpoints. With 50%+ of web traffic being mobile, poor mobile experience will alienate half of potential users.",
+      "solution": "Conduct comprehensive mobile audit on iOS and Android devices at various screen sizes (320px to 768px). Fix layout issues, ensure all touch targets are minimum 44x44px, optimize forms for mobile keyboards, add mobile-specific UI patterns (bottom navigation, swipe gestures), improve tap response feedback, optimize images for mobile bandwidth, test video player on mobile.",
+      "userStories": [
+        "As a mobile user, I want the app to work smoothly on my phone so that I can use it anywhere",
+        "As a mobile user, I want buttons large enough to tap accurately so that I don't misclick",
+        "As a mobile user, I want forms optimized for mobile input so that data entry is not frustrating",
+        "As a mobile user, I want fast load times so that I'm not waiting on slow cellular connections",
+        "As a user on tablet, I want the layout to adapt appropriately so that screen space is used effectively"
+      ],
+      "acceptanceCriteria": [
+        "All pages tested on iOS Safari and Android Chrome at 375px, 414px, 768px widths",
+        "All interactive elements (buttons, links, cards) are minimum 44x44px touch targets",
+        "Navigation menu adapts to mobile with hamburger menu or bottom navigation bar",
+        "Forms use appropriate mobile input types (email, tel, number) for better keyboard",
+        "Video player works on mobile Safari and Chrome, supports native fullscreen",
+        "Tables/data grids scroll horizontally or adapt to card layout on mobile",
+        "Images use srcset or next/image for responsive sizing",
+        "Modal dialogs are full-screen or nearly full-screen on mobile for easier interaction",
+        "Spacing between interactive elements is sufficient to prevent mis-taps (min 8px)",
+        "Text is readable without zooming (min 16px font size)",
+        "Horizontal scrolling only where intentional (carousels)",
+        "Performance: First Contentful Paint <2s on 3G connection"
+      ],
+      "implementation": {
+        "backend": "No changes needed - responsiveness is frontend only.",
+        "frontend": "Audit all pages using Chrome DevTools device emulation and real devices. Update Tailwind classes to use responsive breakpoints (sm:, md:, lg:). Increase button/link padding on mobile using conditional classes. Implement mobile navigation: create /components/MobileNav.tsx with hamburger menu or bottom tab bar. Update forms to use type='email', type='tel', inputMode, autocomplete attributes. Ensure video player library supports mobile (test react-player on iOS/Android). Convert tables to card layout on mobile using CSS grid. Implement swipe gestures for image galleries using react-swipeable. Add touch feedback using active: states or haptic feedback. Optimize images using next/image with priority and sizes attributes. Test and fix z-index issues with modals on mobile. Add viewport meta tag verification.",
+        "database": "None"
+      },
+      "riceScore": {
+        "reach": 80,
+        "impact": 85,
+        "confidence": 90,
+        "effort": 45,
+        "score": 136.0
+      },
+      "priority": "P2",
+      "estimatedHours": 36
+    },
+    {
+      "id": "IMP-023",
+      "category": "Feature",
+      "title": "Implement video processing pipeline",
+      "problem": "Videos are stored in original upload format without processing, leading to large file sizes, slow playback, compatibility issues, and high bandwidth costs. No thumbnails are generated, making video lists visually unappealing. No support for multiple quality levels (360p, 720p, 1080p) for adaptive streaming. Users with slow connections can't watch videos effectively.",
+      "solution": "Implement server-side video processing pipeline using FFmpeg or cloud service (Mux, Cloudinary, Cloudflare Stream): (1) Generate thumbnail at 2-second mark, (2) Compress video to web-optimized format (H.264/AAC), (3) Create multiple quality versions (360p, 720p, 1080p), (4) Support adaptive bitrate streaming (HLS), (5) Store processed versions in S3, (6) Update Video model with thumbnail URL and quality URLs.",
+      "userStories": [
+        "As a user, I want my videos to load quickly so that I can review them without waiting",
+        "As a user on slow connection, I want lower quality options so that videos are still playable",
+        "As a trainer, I want video thumbnails so that I can quickly identify which videos to review",
+        "As a platform operator, I want compressed videos so that bandwidth costs are minimized",
+        "As a user, I want my uploaded videos to work across all browsers so that playback is reliable"
+      ],
+      "acceptanceCriteria": [
+        "After upload, video enters processing queue",
+        "User sees 'Processing...' status with progress indicator",
+        "Processing generates: thumbnail (JPG, 320x180), 360p version, 720p version, original quality",
+        "Processed videos are in H.264 codec, AAC audio, MP4 container",
+        "Video model stores: thumbnailUrl, qualities { 360p: url, 720p: url, 1080p: url }",
+        "Video player offers quality selection dropdown",
+        "Processing completes within 5 minutes for typical 2-minute video",
+        "Failed processing shows error status and allows re-upload",
+        "Original uploaded video is archived or deleted after successful processing",
+        "Notification sent to user when processing completes"
+      ],
+      "implementation": {
+        "backend": "Choose approach: (A) Self-hosted FFmpeg: Install FFmpeg in Docker container, create queue with BullMQ/Redis, worker processes videos, or (B) Cloud service: Integrate Mux/Cloudinary API for simpler setup. For self-hosted: create /lib/video/process.ts with FFmpeg commands for thumbnail and transcoding. Create /app/api/webhooks/video-processed/route.ts to receive completion notifications. Update Video model with status (uploaded, processing, ready, failed), thumbnailUrl, qualityUrls (Json). Create queue worker that picks up new uploads and processes them. For cloud: use Mux Video API which handles all processing and returns HLS URLs.",
+        "frontend": "Update VideoCard to show thumbnail instead of placeholder. Add processing status indicator on videos being processed. Update VideoPlayer to support quality selection if using multi-quality output. Show thumbnail in upload confirmation. Add video preview thumbnail in feedback view.",
+        "database": "Add to Video model: status String @default('uploaded') (values: uploaded, processing, ready, failed), thumbnailUrl String?, qualityUrls Json? @default('{}'), processingError String?. Add index on status for querying pending processing jobs."
+      },
+      "riceScore": {
+        "reach": 90,
+        "impact": 75,
+        "confidence": 70,
+        "effort": 70,
+        "score": 67.5
+      },
+      "priority": "P2",
+      "estimatedHours": 56
+    },
+    {
+      "id": "IMP-024",
+      "category": "Security",
+      "title": "Add comprehensive security headers and CSP",
+      "problem": "The application lacks security headers, leaving it vulnerable to clickjacking, MIME sniffing attacks, XSS, and other common web vulnerabilities. No Content Security Policy is configured, meaning malicious scripts could be injected and executed. Missing Strict-Transport-Security header allows downgrade attacks. These are basic security hardening steps that should be implemented before production launch.",
+      "solution": "Implement comprehensive security headers using Next.js configuration: (1) Content-Security-Policy restricting script sources, (2) X-Frame-Options to prevent clickjacking, (3) X-Content-Type-Options to prevent MIME sniffing, (4) Strict-Transport-Security for HTTPS enforcement, (5) Referrer-Policy to control referrer information, (6) Permissions-Policy to disable unnecessary browser features. Test CSP in report-only mode first to avoid breaking functionality.",
+      "userStories": [
+        "As a user, I want protection from XSS attacks so that malicious scripts cannot steal my data",
+        "As a user, I want the platform to be secure so that my personal information is protected",
+        "As a platform operator, I want to follow security best practices so that we pass security audits and maintain user trust",
+        "As a developer, I want CSP violations reported so that I can identify and fix security issues"
+      ],
+      "acceptanceCriteria": [
+        "Content-Security-Policy header configured with appropriate directives for all resources",
+        "CSP allows app functionality (scripts, styles, images, fonts, media) while blocking unauthorized sources",
+        "X-Frame-Options: DENY or SAMEORIGIN to prevent clickjacking",
+        "X-Content-Type-Options: nosniff to prevent MIME sniffing",
+        "Strict-Transport-Security: max-age=31536000; includeSubDomains; preload",
+        "Referrer-Policy: strict-origin-when-cross-origin",
+        "Permissions-Policy disables unnecessary features (geolocation, microphone, camera)",
+        "Security headers present on all routes including API routes",
+        "CSP violations logged and monitored",
+        "Security score of A or A+ on securityheaders.com",
+        "No browser console CSP violation errors for normal usage"
+      ],
+      "implementation": {
+        "backend": "Update next.config.js to add headers configuration. Define CSP policy allowing scripts from 'self', styles from 'self' and 'unsafe-inline' (for Tailwind), images from 'self' and S3 domain, media from S3 domain, connect to API routes and Stripe. Start with CSP in report-only mode: Content-Security-Policy-Report-Only. Set up CSP violation reporting endpoint /app/api/csp-violations/route.ts to log violations. After testing, switch to enforcing mode. Add security headers to middleware.ts for API routes. Configure HSTS with long max-age. Add Permissions-Policy header disabling unused features.",
+        "frontend": "Remove any inline scripts (move to script files). Ensure all external resources are allowlisted in CSP. Add nonce or hash for any necessary inline scripts. Test all functionality with CSP enforced. Update script/link tags with appropriate attributes.",
+        "database": "Optional: Create CspViolation model to log CSP violations: id, documentUri, violatedDirective, blockedUri, sourceFile, lineNumber, userAgent, createdAt. Useful for monitoring security issues."
+      },
+      "riceScore": {
+        "reach": 100,
+        "impact": 80,
+        "confidence": 95,
+        "effort": 25,
+        "score": 304.0
+      },
+      "priority": "P1",
+      "estimatedHours": 20
+    },
+    {
+      "id": "IMP-025",
+      "category": "UX",
+      "title": "Enhance landing page with social proof and visuals",
+      "problem": "The landing page is text-only with no images, videos, testimonials, or social proof. It looks generic and unprofessional, failing to build trust or excitement. No demo video shows the product in action. No trainer testimonials or user success stories. No trust badges showing certifications or security. This directly impacts conversion rates - users are unlikely to sign up based on text alone.",
+      "solution": "Redesign landing page with engaging content: (1) Hero section with demo video or animated graphic showing the platform, (2) Trainer testimonials section with photos, quotes, and credentials, (3) User success stories with before/after metrics (e.g., '20% improvement in squat form'), (4) Trust badges (certified trainers, secure payments, privacy protected), (5) FAQ section answering common questions, (6) Comparison table vs. alternatives (in-person coaching, generic apps), (7) Stronger CTAs with value propositions.",
+      "userStories": [
+        "As a prospective user, I want to see the platform in action so that I can understand how it works before signing up",
+        "As a prospective user, I want to read reviews from other users so that I can trust the platform is legitimate and effective",
+        "As a prospective user, I want to see trainer credentials so that I know I'll receive quality feedback",
+        "As a prospective trainer, I want to see success stories so that I'm convinced the platform is worth joining",
+        "As a skeptical visitor, I want answers to common questions so that my concerns are addressed"
+      ],
+      "acceptanceCriteria": [
+        "Hero section includes demo video (30-60 seconds) showing key workflow: upload → trainer review → timestamped feedback",
+        "Alternative: Animated graphic or high-quality screenshots showing the product",
+        "Testimonials section with 3-5 trainer quotes including name, photo, specialty, years of experience",
+        "Success stories section with 2-3 user stories including metrics and photos (if permitted)",
+        "Trust badges section showing: certified trainers, secure payment (Stripe logo), privacy policy, money-back guarantee",
+        "FAQ section with accordion UI answering 8-10 common questions",
+        "Comparison table showing FormFit Coach vs. in-person training vs. free YouTube advice",
+        "Improved CTAs with specific value props (e.g., 'Get Expert Feedback in 24 Hours')",
+        "Mobile-responsive layout with smooth animations",
+        "Page load time <3 seconds with optimized images/video"
+      ],
+      "implementation": {
+        "backend": "Create content management system or static content file for testimonials, FAQs, success stories. Create /app/api/content/landing/route.ts if content is database-driven. Otherwise, use /lib/content/landing.ts with static data.",
+        "frontend": "Redesign /app/page.tsx with new sections. Create components: /components/landing/Hero.tsx with video embed (YouTube/Vimeo) or video.js player. /components/landing/Testimonials.tsx with card carousel (use embla-carousel-react or swiper). /components/landing/SuccessStories.tsx with metrics and photos. /components/landing/TrustBadges.tsx with icon grid. /components/landing/FAQ.tsx with Radix UI Accordion. /components/landing/ComparisonTable.tsx with feature comparison. Update CTAs with more specific copy. Add smooth scroll to sections. Optimize images with next/image. Add animations using framer-motion for scroll reveals. Create demo video by screen recording the platform workflow with voiceover.",
+        "database": "Optional: Create Testimonial and FAQ models if content is database-driven: Testimonial: id, name, role, specialty, quote, photoUrl, featured (Boolean), order (Int). FAQ: id, question, answer, order (Int), category."
+      },
+      "riceScore": {
+        "reach": 100,
+        "impact": 70,
+        "confidence": 80,
+        "effort": 50,
+        "score": 112.0
+      },
+      "priority": "P2",
+      "estimatedHours": 40
+    },
+    {
+      "id": "IMP-026",
+      "category": "Performance",
+      "title": "Optimize bundle size and implement code splitting",
+      "problem": "The application ships a large JavaScript bundle to all users without code splitting beyond Next.js defaults. Heavy libraries (video player, file upload, Stripe) are loaded even on pages that don't use them. No bundle size analysis has been done. This results in slower initial page loads, especially on mobile devices or slow connections, negatively impacting user experience and SEO rankings.",
+      "solution": "Analyze current bundle size, identify heavy dependencies, implement lazy loading for heavy components, add route-based code splitting, remove unused dependencies, set up bundle size budgets in CI to prevent regressions. Use next/dynamic for component-level code splitting. Optimize third-party scripts to load asynchronously.",
+      "userStories": [
+        "As a user on slow connection, I want the app to load quickly so that I can start using it without long waits",
+        "As a developer, I want visibility into bundle size so that I can make informed decisions about dependencies",
+        "As a platform operator, I want optimized performance so that SEO rankings improve and users don't bounce",
+        "As a developer, I want bundle size budgets so that new features don't accidentally bloat the app"
+      ],
+      "acceptanceCriteria": [
+        "Bundle analysis report generated showing size breakdown by chunk",
+        "Main bundle size reduced by at least 30% through code splitting and optimization",
+        "Video player component lazy loaded only on pages with videos",
+        "File upload component (react-dropzone) lazy loaded only on upload page",
+        "Stripe components lazy loaded only on checkout/payment pages",
+        "Initial JavaScript payload <200KB gzipped for main page",
+        "Lighthouse performance score >90 for landing page",
+        "Time to Interactive (TTI) <4 seconds on 3G connection",
+        "CI pipeline checks bundle size and fails if budget exceeded",
+        "Unused dependencies removed from package.json"
+      ],
+      "implementation": {
+        "backend": "No changes needed - optimization is frontend only.",
+        "frontend": "Install @next/bundle-analyzer, configure in next.config.js. Run 'npm run analyze' to generate bundle report. Identify heavy chunks (likely react-player, @aws-sdk, stripe). Update heavy components to use dynamic imports: const VideoPlayer = dynamic(() => import('./VideoPlayer'), { loading: () => <Skeleton /> }). Lazy load video player, file upload, chart libraries. Use next/script with strategy='lazyOnload' for non-critical third-party scripts. Audit dependencies with 'npm ls' and remove unused packages. Configure webpack to optimize chunk splitting. Add bundle size budget in package.json using bundlesize package. Update CI workflow to run bundlesize check. Implement route-based prefetching only for likely next pages (don't prefetch all routes).",
+        "database": "None"
+      },
+      "riceScore": {
+        "reach": 90,
+        "impact": 65,
+        "confidence": 85,
+        "effort": 35,
+        "score": 142.93
+      },
+      "priority": "P2",
+      "estimatedHours": 28
+    },
+    {
+      "id": "IMP-027",
+      "category": "Feature",
+      "title": "Add trainer availability and scheduling system",
+      "problem": "Trainers have no way to set their availability or maximum workload, leading to potential burnout when assigned too many videos. Users don't know expected turnaround time before selecting a trainer. No queue management or fair distribution of work. Trainers might be assigned videos when they're on vacation or already at capacity. This creates unpredictable service delivery and trainer dissatisfaction.",
+      "solution": "Implement availability and scheduling system: (1) Trainers set available hours per week, (2) Trainers set max reviews per day/week, (3) System tracks current workload and only shows available trainers to users, (4) Display estimated turnaround time on trainer profiles (e.g., '24-48 hours'), (5) Implement queue system that distributes work fairly among available trainers, (6) Allow trainers to set 'away' status for vacations.",
+      "userStories": [
+        "As a trainer, I want to set my availability so that I'm only assigned work when I can handle it",
+        "As a trainer, I want to limit my workload so that I don't get overwhelmed and can maintain quality",
+        "As a user, I want to see estimated turnaround time so that I know when to expect feedback",
+        "As a user, I want to select trainers who are currently available so that I get faster service",
+        "As a trainer, I want to set 'away' status for vacations so that I don't get assignments when I'm not working"
+      ],
+      "acceptanceCriteria": [
+        "Trainer settings page includes availability section: max reviews per day, max reviews per week, typical turnaround time",
+        "Trainer can toggle 'Currently accepting reviews' switch to go unavailable",
+        "Trainer can set 'Away' status with optional return date",
+        "Trainer profiles show 'Available' or 'Next available: [date]' status",
+        "Video assignment algorithm respects trainer capacity and only assigns to available trainers",
+        "Users cannot select unavailable trainers (or see warning that turnaround will be delayed)",
+        "Admin dashboard shows trainer capacity utilization (e.g., 'John: 8/10 reviews this week')",
+        "Trainers receive notification when approaching capacity limit",
+        "System prevents over-assignment (hard cap at max capacity)"
+      ],
+      "implementation": {
+        "backend": "Add to Trainer model: maxReviewsPerDay Int @default(5), maxReviewsPerWeek Int @default(25), typicalTurnaroundHours Int @default(48), availabilityStatus String @default('available') (values: available, away, at_capacity), awayUntil DateTime?. Create /app/api/trainer/availability/route.ts PATCH for updating availability settings. Update video assignment logic in /app/api/videos/assign-trainer/route.ts to check: (1) trainer availability status, (2) count current pending reviews, (3) only assign if under capacity. Create calculated field for current workload. Add cron job to auto-update status to 'at_capacity' when limits reached.",
+        "frontend": "Add availability section to trainer settings page with inputs for limits and status toggle. Create /components/TrainerAvailabilityBadge.tsx showing 'Available', 'Busy', 'Away' with color coding. Update trainer cards to show availability and estimated turnaround. Add warning on trainer selection if trainer is near capacity. Create /components/TrainerWorkloadChart.tsx for trainers to see their current/historical workload.",
+        "database": "Alter Trainer model to add: maxReviewsPerDay Int @default(5), maxReviewsPerWeek Int @default(25), typicalTurnaroundHours Int @default(48), availabilityStatus String @default('available'), awayUntil DateTime?."
+      },
+      "riceScore": {
+        "reach": 70,
+        "impact": 75,
+        "confidence": 80,
+        "effort": 55,
+        "score": 76.36
+      },
+      "priority": "P3",
+      "estimatedHours": 44
+    },
+    {
+      "id": "IMP-028",
+      "category": "UX",
+      "title": "Implement autosave for feedback composition",
+      "problem": "Trainers spend significant time writing detailed feedback and timestamped comments. If they accidentally navigate away, close the tab, or experience a browser crash, all their work is lost. This is extremely frustrating and wastes billable time. No autosave or draft system exists. This is a common pain point that should be addressed to improve trainer satisfaction and retention.",
+      "solution": "Implement autosave functionality for feedback forms: (1) Auto-save draft to localStorage every 30 seconds as trainer types, (2) On page load, check for saved draft and offer to restore, (3) Visual indicator showing 'Saving...', 'Saved', or 'Unsaved changes', (4) Optional: Save drafts to database for cross-device access, (5) Clear draft after successful submission.",
+      "userStories": [
+        "As a trainer, I want my feedback auto-saved so that I don't lose work if I accidentally navigate away",
+        "As a trainer, I want to see save status so that I know my work is protected",
+        "As a trainer, I want draft recovery so that I can resume work after browser crash",
+        "As a trainer writing long feedback, I want peace of mind so that I can take breaks without losing progress"
+      ],
+      "acceptanceCriteria": [
+        "Feedback form auto-saves to localStorage every 30 seconds while typing",
+        "Save indicator shows 'Saving...', 'Saved', or 'Unsaved changes'",
+        "On page load, if draft exists, show modal: 'Restore draft from [timestamp]?' with Yes/No buttons",
+        "Successful feedback submission clears the draft",
+        "Autosave includes: feedback text, all timestamped comments, ratings",
+        "Works across multiple videos (draft keyed by videoId)",
+        "Manual 'Save draft' button for trainers who want to explicitly save",
+        "'Discard draft' button to clear saved draft",
+        "Drafts older than 7 days are auto-cleared"
+      ],
+      "implementation": {
+        "backend": "Optional: Create FeedbackDraft model for database-backed drafts: id, trainerId, videoId, content (Json), lastSaved (DateTime). Create /app/api/feedback/draft/route.ts POST/GET/DELETE endpoints. This enables cross-device draft access.",
+        "frontend": "Create autosave hook: useAutosave(key, data, interval=30000). Use useDebounce to avoid saving on every keystroke. Store draft in localStorage with key 'feedback_draft_{videoId}'. On component mount, check localStorage for draft and show restore modal if found. Add save status indicator in form header using state from autosave hook. Implement debounced save function that JSON.stringifies form state. Add 'Discard draft' button that removes localStorage item. Clear draft in onSuccess callback after submission. Add useBeforeUnload hook to warn about unsaved changes.",
+        "database": "Optional: FeedbackDraft model: id, trainerId (Int, relation), videoId (Int, relation), content (Json), lastSaved (DateTime @default(now())), @@unique([trainerId, videoId])."
+      },
+      "riceScore": {
+        "reach": 40,
+        "impact": 80,
+        "confidence": 90,
+        "effort": 20,
+        "score": 144.0
+      },
+      "priority": "P2",
+      "estimatedHours": 16
+    },
+    {
+      "id": "IMP-029",
+      "category": "Feature",
+      "title": "Add analytics and monitoring infrastructure",
+      "problem": "The platform has no error tracking, performance monitoring, or business analytics. Developers don't know when errors occur in production. Product managers can't track conversion rates, retention, or revenue metrics. No insight into user behavior or platform health. This makes it impossible to make data-driven decisions, identify and fix issues proactively, or measure success of features.",
+      "solution": "Implement comprehensive monitoring and analytics: (1) Error tracking with Sentry or similar - capture errors, stack traces, user context, (2) Performance monitoring for Core Web Vitals and API response times, (3) Business analytics tracking key metrics: signups, conversions, revenue, retention, (4) User behavior analytics showing feature usage, (5) Custom dashboard for key metrics, (6) Alerts for critical issues.",
+      "userStories": [
+        "As a developer, I want to be notified immediately when errors occur so that I can fix issues before they affect many users",
+        "As a product manager, I want conversion funnel analytics so that I can optimize the signup and purchase flow",
+        "As a platform operator, I want revenue and retention metrics so that I can track business health",
+        "As a developer, I want performance monitoring so that I can identify and fix slow pages",
+        "As a team, I want a centralized dashboard so that everyone can see platform health at a glance"
+      ],
+      "acceptanceCriteria": [
+        "Sentry integrated with error tracking for frontend and backend",
+        "All errors automatically captured with stack traces, user ID, route, timestamp",
+        "Slack/email alerts configured for critical errors (>10 occurrences in 5 minutes)",
+        "Performance monitoring tracks Core Web Vitals (LCP, FID, CLS) and API response times",
+        "Analytics events tracked: signup, login, video_upload, trainer_selection, feedback_submission, credit_purchase",
+        "Custom dashboard shows: daily active users, conversion rate (signup → first upload), revenue (daily/weekly/monthly), retention (D1, D7, D30)",
+        "Funnel visualization for signup → upload → purchase flow showing drop-off points",
+        "Alerts configured for: error spikes, performance degradation, low conversion rates",
+        "Privacy-compliant analytics (GDPR, CCPA) with opt-out mechanism"
+      ],
+      "implementation": {
+        "backend": "Install @sentry/nextjs. Create sentry.client.config.ts and sentry.server.config.ts with DSN and environment. Configure error boundaries to report to Sentry. Add Sentry.captureException in error handlers. Create /lib/analytics/track.ts wrapper for event tracking using Mixpanel, Amplitude, or PostHog. Track backend events: user_registered, video_uploaded, feedback_completed, payment_succeeded. Create /app/api/analytics/events/route.ts POST endpoint for custom events. Set up performance monitoring with Sentry Performance or New Relic. Create /lib/metrics/dashboard.ts with queries for business metrics. Create /app/api/admin/analytics/route.ts providing metrics for dashboard.",
+        "frontend": "Initialize Sentry in app/layout.tsx. Wrap app in Sentry ErrorBoundary. Track user events using analytics.track(). Add performance measurement using Next.js reportWebVitals. Create /app/admin/analytics/page.tsx dashboard with charts (recharts) showing key metrics. Display error rate, performance graphs, conversion funnels. Add real-time user count widget. Implement event tracking on key actions: button clicks, form submissions, navigation.",
+        "database": "Create AnalyticsEvent model (optional, for custom analytics): id, eventType (String), userId (Int?), properties (Json), timestamp (DateTime). Add indexes on eventType and timestamp for efficient querying. Alternative: use third-party analytics service to avoid database bloat."
+      },
+      "riceScore": {
+        "reach": 100,
+        "impact": 75,
+        "confidence": 85,
+        "effort": 45,
+        "score": 141.67
+      },
+      "priority": "P2",
+      "estimatedHours": 36
+    },
+    {
+      "id": "IMP-030",
+      "category": "UX",
+      "title": "Improve accessibility to WCAG 2.1 AA compliance",
+      "problem": "The application lacks accessibility features, making it difficult or impossible for users with disabilities to use. No ARIA labels, keyboard navigation not verified, color contrast not checked, no screen reader testing. This excludes a significant portion of potential users (15-20% of population has some disability) and may violate legal requirements (ADA, Section 508). Poor accessibility also hurts SEO.",
+      "solution": "Conduct accessibility audit and implement WCAG 2.1 AA compliance: (1) Add proper ARIA labels to all interactive elements, (2) Ensure full keyboard navigation support, (3) Verify color contrast ratios meet WCAG standards, (4) Test with screen readers (NVDA, JAWS, VoiceOver), (5) Implement focus management for modals and dialogs, (6) Add skip-to-content link, (7) Support reduced motion preferences, (8) Add alt text strategy for images, (9) Ensure form errors are announced to screen readers.",
+      "userStories": [
+        "As a keyboard user, I want to navigate the entire app without a mouse so that I can use the platform effectively",
+        "As a screen reader user, I want proper ARIA labels so that I understand the purpose of each element",
+        "As a user with low vision, I want sufficient color contrast so that text is readable",
+        "As a user with motion sensitivity, I want reduced motion support so that animations don't cause discomfort",
+        "As a user with disabilities, I want an accessible platform so that I can improve my fitness like anyone else"
+      ],
+      "acceptanceCriteria": [
+        "All interactive elements have appropriate ARIA labels (aria-label, aria-labelledby)",
+        "Full keyboard navigation works: Tab through all interactive elements in logical order",
+        "Focus visible on all interactive elements with clear visual indicator",
+        "Skip-to-content link appears on Tab from top of page",
+        "All form inputs have associated labels (htmlFor matching input id)",
+        "Form errors announced to screen readers (aria-live, role='alert')",
+        "Color contrast ratio ≥4.5:1 for normal text, ≥3:1 for large text",
+        "Modals trap focus and return to trigger element on close",
+        "Reduced motion preference supported (prefers-reduced-motion media query)",
+        "Alt text provided for all informative images",
+        "Video player has keyboard controls and supports captions (future)",
+        "Automated accessibility tests pass (axe-core, Pa11y)",
+        "Manual screen reader testing completed on 3 major flows",
+        "Lighthouse accessibility score ≥90"
+      ],
+      "implementation": {
+        "backend": "No changes needed - accessibility is primarily frontend.",
+        "frontend": "Install @axe-core/react for development accessibility testing. Add aria-label to all buttons, links, and interactive elements. Ensure form labels use htmlFor. Add skip link: <a href='#main' className='skip-link'>Skip to content</a> with CSS to show on focus. Implement focus trapping in modals using focus-trap-react or Radix UI Dialog. Add aria-live regions for notifications and errors. Update color palette to meet contrast ratios - use WebAIM contrast checker. Add prefers-reduced-motion media queries to disable/reduce animations. Create accessibility testing checklist for new features. Add keyboard event handlers (onKeyDown) for custom interactive components. Ensure focus moves logically with Tab key. Add visually hidden text for icon-only buttons. Test with NVDA, JAWS, VoiceOver and document issues. Fix focus styles - make sure outline or ring is visible on all interactive elements.",
+        "database": "None"
+      },
+      "riceScore": {
+        "reach": 80,
+        "impact": 70,
+        "confidence": 80,
+        "effort": 50,
+        "score": 89.6
+      },
+      "priority": "P2",
+      "estimatedHours": 40
+    }
+  ],
+  "summary": {
+    "totalImprovements": 30,
+    "newFeatures": [
+      "Video playback with controls",
+      "Credit purchase pricing page and flow",
+      "Timestamped video comments",
+      "Email verification and password reset",
+      "User profile and settings page",
+      "Real-time notification system",
+      "Trainer rating and review system",
+      "Video management (edit, delete, privacy)",
+      "Comprehensive onboarding flow",
+      "Admin dashboard for platform management",
+      "Search and filtering for trainers",
+      "Testing infrastructure (unit, integration, E2E)",
+      "Video processing pipeline",
+      "Trainer availability and scheduling system",
+      "Analytics and monitoring infrastructure"
+    ],
+    "bugFixes": [
+      "Error boundaries to prevent app crashes",
+      "Fix Stripe webhook signature verification",
+      "Fix Trainer relation queries in feedback routes",
+      "Implement proper file cleanup for abandoned uploads"
+    ],
+    "uxEnhancements": [
+      "Comprehensive loading and error states",
+      "Pagination and infinite scroll",
+      "Mobile responsiveness and touch interactions",
+      "Enhanced landing page with social proof",
+      "Autosave for feedback composition",
+      "WCAG 2.1 AA accessibility compliance"
+    ],
+    "performanceOptimizations": [
+      "Database query optimization and caching",
+      "Bundle size optimization and code splitting"
+    ],
+    "securityEnhancements": [
+      "Comprehensive input validation and sanitization",
+      "Environment variable validation on startup",
+      "Security headers and Content Security Policy"
+    ]
+  },
+  "timeline": {
+    "immediate": [
+      "IMP-002",
+      "IMP-003",
+      "IMP-004",
+      "IMP-005",
+      "IMP-012"
+    ],
+    "shortTerm": [
+      "IMP-001",
+      "IMP-006",
+      "IMP-007",
+      "IMP-008",
+      "IMP-009",
+      "IMP-010",
+      "IMP-011",
+      "IMP-013",
+      "IMP-014",
+      "IMP-021",
+      "IMP-024"
+    ],
+    "mediumTerm": [
+      "IMP-015",
+      "IMP-016",
+      "IMP-017",
+      "IMP-018",
+      "IMP-019",
+      "IMP-020",
+      "IMP-022",
+      "IMP-023",
+      "IMP-025",
+      "IMP-026",
+      "IMP-028",
+      "IMP-029",
+      "IMP-030"
+    ],
+    "longTerm": [
+      "IMP-027"
+    ]
+  }
+}

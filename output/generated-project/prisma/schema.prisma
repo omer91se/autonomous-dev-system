@@ -1,0 +1,328 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  TRAINER
+  ADMIN
+}
+
+enum FitnessLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum VideoStatus {
+  UPLOADING
+  PROCESSING
+  READY
+  FAILED
+}
+
+enum FeedbackStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum TransactionType {
+  CREDIT_PURCHASE
+  SUBSCRIPTION
+  REFUND
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum NotificationType {
+  FEEDBACK_READY
+  VIDEO_ASSIGNED
+  UPLOAD_SUCCESS
+  PURCHASE_COMPLETE
+  EMAIL_VERIFIED
+  PASSWORD_RESET
+}
+
+model User {
+  id            String        @id @default(cuid())
+  email         String        @unique
+  emailVerified Boolean       @default(false)
+  name          String?
+  password      String
+  role          Role          @default(USER)
+  fitnessLevel  FitnessLevel?
+  goals         String?
+  image         String?
+
+  // Email verification & password reset
+  verificationToken       String?   @unique
+  verificationTokenExpiry DateTime?
+  resetToken              String?   @unique
+  resetTokenExpiry        DateTime?
+
+  // User preferences
+  preferences             Json      @default("{}")
+  lastPasswordChange      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  trainer       Trainer?
+  videos        Video[]
+  credits       Credit[]
+  transactions  Transaction[]
+  comments      Comment[]
+  sessions      Session[]
+  notifications Notification[]
+  purchases     Purchase[]
+  reviews       TrainerReview[]
+  adminActions  AdminAction[]
+
+  @@index([email])
+  @@index([role])
+  @@index([verificationToken])
+  @@index([resetToken])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Trainer {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  bio                  String?
+  specialties          String[]
+  certifications       String[]
+  rating               Float    @default(0)
+  totalReviews         Int      @default(0)
+  isVerified           Boolean  @default(false)
+  isActive             Boolean  @default(true)
+  hourlyRate           Float?
+  avgResponseTimeHours Float?
+  availableHours       Json?
+  maxDailyReviews      Int      @default(10)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // Relations
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  feedback Feedback[]
+  reviews  TrainerReview[]
+
+  @@index([userId])
+  @@index([isVerified])
+  @@index([isActive])
+  @@index([rating, totalReviews])
+}
+
+model Video {
+  id                 String      @id @default(cuid())
+  userId             String
+  title              String
+  description        String?
+  fileUrl            String
+  thumbnailUrl       String?
+  workoutType        String
+  duration           Int?
+  fileSize           Int
+  status             VideoStatus @default(UPLOADING)
+  processingMetadata Json?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  // Relations
+  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  feedback Feedback[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, status])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Feedback {
+  id        String         @id @default(cuid())
+  videoId   String
+  trainerId String
+  content   String
+  rating    Int?
+  status    FeedbackStatus @default(PENDING)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  // Relations
+  video         Video           @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  trainer       Trainer         @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+  comments      Comment[]
+  trainerReview TrainerReview?
+
+  @@index([videoId, status])
+  @@index([trainerId, status, createdAt(sort: Desc)])
+  @@index([videoId])
+  @@index([trainerId])
+  @@index([status])
+}
+
+model Comment {
+  id         String   @id @default(cuid())
+  feedbackId String
+  userId     String
+  content    String
+  timestamp  Int?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  feedback Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([feedbackId, timestamp])
+  @@index([feedbackId])
+  @@index([userId])
+}
+
+model Transaction {
+  id              String            @id @default(cuid())
+  userId          String
+  amount          Float
+  type            TransactionType
+  status          TransactionStatus @default(PENDING)
+  stripePaymentId String?
+  metadata        Json              @default("{}")
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  // Relations
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credit Credit?
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Credit {
+  id            String   @id @default(cuid())
+  userId        String
+  balance       Int      @default(0)
+  transactionId String?  @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transaction Transaction? @relation(fields: [transactionId], references: [id])
+
+  @@index([userId])
+}
+
+model StripeWebhookLog {
+  id          String    @id @default(cuid())
+  eventId     String    @unique
+  eventType   String
+  status      String    @default("pending")
+  payload     Json
+  error       String?
+  attempts    Int       @default(1)
+  createdAt   DateTime  @default(now())
+  processedAt DateTime?
+
+  @@index([eventId])
+  @@index([status])
+  @@index([eventType])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  link      String?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read, createdAt(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+model Purchase {
+  id                    String    @id @default(cuid())
+  userId                String
+  stripeSessionId       String    @unique
+  stripePaymentIntentId String?
+  amount                Int
+  credits               Int
+  status                String    @default("pending")
+  metadata              Json      @default("{}")
+  createdAt             DateTime  @default(now())
+  completedAt           DateTime?
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([status])
+}
+
+model TrainerReview {
+  id         String   @id @default(cuid())
+  trainerId  String
+  userId     String
+  feedbackId String   @unique
+  rating     Int
+  comment    String?
+  isVerified Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  trainer  Trainer  @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  feedback Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, feedbackId])
+  @@index([trainerId, createdAt(sort: Desc)])
+  @@index([userId])
+}
+
+model AdminAction {
+  id         String   @id @default(cuid())
+  adminId    String
+  action     String
+  targetId   String?
+  targetType String?
+  metadata   Json     @default("{}")
+  createdAt  DateTime @default(now())
+
+  // Relations
+  admin User @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId, createdAt(sort: Desc)])
+  @@index([targetId])
+}

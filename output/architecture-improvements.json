@@ -1,0 +1,809 @@
+{
+  "appName": "FormFit Coach",
+  "reviewDate": "2026-03-14",
+  "currentArchitecture": {
+    "techStack": {
+      "frontend": "Next.js 14 App Router, React 18 (Server & Client Components), TailwindCSS 3.4, TypeScript 5.3",
+      "backend": "Next.js API Routes, Prisma ORM 5.9, NextAuth.js 4.24",
+      "database": "PostgreSQL with Prisma schema",
+      "storage": "AWS S3 with presigned URLs",
+      "payments": "Stripe Checkout & Webhooks",
+      "auth": "NextAuth.js with JWT sessions and credentials provider",
+      "email": "NodeMailer with SMTP",
+      "stateManagement": "TanStack Query 5.20 for server state, React hooks for local state"
+    },
+    "strengths": [
+      "Modern Next.js 14 App Router with Server Components for optimal performance",
+      "Type-safe database access with Prisma ORM and TypeScript",
+      "Proper separation of concerns with /app, /components, /lib structure",
+      "React Query for efficient server state management and caching",
+      "Secure authentication with NextAuth.js and password hashing",
+      "Scalable file storage with AWS S3",
+      "Stripe integration for reliable payment processing",
+      "Enum-based type safety for status fields (VideoStatus, FeedbackStatus, etc.)"
+    ],
+    "weaknesses": [
+      "No caching layer (Redis) for frequently accessed data like trainer listings",
+      "Missing API versioning strategy - breaking changes will affect all clients",
+      "No service layer or repository pattern - business logic mixed with route handlers",
+      "Database queries not optimized - potential N+1 queries, missing indexes on filtered fields",
+      "No input validation framework implemented - Zod installed but not used consistently",
+      "Missing error tracking and monitoring infrastructure (no Sentry/APM)",
+      "No rate limiting on any endpoints - vulnerable to abuse",
+      "Prisma client created without connection pooling optimization",
+      "No separation between public and authenticated API routes",
+      "Email and S3 clients recreated on each use instead of singleton pattern"
+    ],
+    "scalabilityConcerns": [
+      "No pagination on list endpoints - will fail with large datasets",
+      "Missing database indexes on frequently queried fields (createdAt, status, userId combinations)",
+      "No caching strategy - every request hits database",
+      "No queue system for background jobs (video processing, email sending, webhook retries)",
+      "No CDN configured for static assets and video thumbnails",
+      "Missing horizontal scaling considerations - no session management for multi-instance deployments",
+      "No database read replicas strategy for separating read/write loads",
+      "File upload uses presigned URLs but no cleanup for abandoned uploads - storage bloat",
+      "No video processing or compression - large files will consume bandwidth",
+      "No request/response compression middleware"
+    ]
+  },
+  "databaseSchemaChanges": [
+    {
+      "model": "User",
+      "changes": "Add fields for email verification tokens, password reset tokens, notification preferences, and last password change tracking",
+      "migration": "ALTER TABLE \"User\" ADD COLUMN \"verificationToken\" TEXT, ADD COLUMN \"verificationTokenExpiry\" TIMESTAMP, ADD COLUMN \"resetToken\" TEXT, ADD COLUMN \"resetTokenExpiry\" TIMESTAMP, ADD COLUMN \"preferences\" JSONB DEFAULT '{}', ADD COLUMN \"lastPasswordChange\" TIMESTAMP; CREATE INDEX \"User_verificationToken_idx\" ON \"User\"(\"verificationToken\"); CREATE INDEX \"User_resetToken_idx\" ON \"User\"(\"resetToken\");",
+      "reasoning": "Email verification and password reset are critical security features. Preferences JSON field allows flexible storage of user settings without schema changes. Indexes on tokens enable fast lookup during verification."
+    },
+    {
+      "model": "Video",
+      "changes": "Add indexes on (userId, createdAt) composite and (userId, status) for efficient querying, add processingMetadata JSON field for future video processing info",
+      "migration": "CREATE INDEX \"Video_userId_createdAt_idx\" ON \"Video\"(\"userId\", \"createdAt\" DESC); CREATE INDEX \"Video_userId_status_idx\" ON \"Video\"(\"userId\", \"status\"); ALTER TABLE \"Video\" ADD COLUMN \"processingMetadata\" JSONB;",
+      "reasoning": "Composite indexes dramatically improve dashboard query performance when fetching user's videos ordered by date. processingMetadata field allows storage of thumbnail URLs, quality versions, processing status without schema changes."
+    },
+    {
+      "model": "Feedback",
+      "changes": "Add indexes on (videoId, status) and (trainerId, status, createdAt) for trainer dashboard queries",
+      "migration": "CREATE INDEX \"Feedback_videoId_status_idx\" ON \"Feedback\"(\"videoId\", \"status\"); CREATE INDEX \"Feedback_trainerId_status_createdAt_idx\" ON \"Feedback\"(\"trainerId\", \"status\", \"createdAt\" DESC);",
+      "reasoning": "Trainers need to efficiently query pending feedback assignments and historical completed work. These composite indexes prevent full table scans."
+    },
+    {
+      "model": "Trainer",
+      "changes": "Add availability, maxDailyReviews, and responseTime tracking fields",
+      "migration": "ALTER TABLE \"Trainer\" ADD COLUMN \"availableHours\" JSONB DEFAULT '{}', ADD COLUMN \"maxDailyReviews\" INTEGER DEFAULT 10, ADD COLUMN \"avgResponseTimeHours\" FLOAT; CREATE INDEX \"Trainer_rating_totalReviews_idx\" ON \"Trainer\"(\"rating\" DESC, \"totalReviews\" DESC);",
+      "reasoning": "Availability management prevents trainer burnout. Response time tracking helps users set expectations. Composite index on rating and reviews improves trainer listing sorting."
+    },
+    {
+      "model": "Comment",
+      "changes": "Add index on (feedbackId, timestamp) for efficient retrieval of timestamped comments in chronological order",
+      "migration": "CREATE INDEX \"Comment_feedbackId_timestamp_idx\" ON \"Comment\"(\"feedbackId\", \"timestamp\");",
+      "reasoning": "Timestamped comments are displayed in video timeline order. This index ensures fast retrieval for video player UI."
+    },
+    {
+      "model": "Transaction",
+      "changes": "Add metadata JSON field for storing package details, Stripe session info, and refund reasons",
+      "migration": "ALTER TABLE \"Transaction\" ADD COLUMN \"metadata\" JSONB DEFAULT '{}';",
+      "reasoning": "Flexible metadata storage enables tracking purchase packages, promotional codes, refund reasons without schema changes. Useful for analytics and customer support."
+    },
+    {
+      "model": "Credit",
+      "changes": "Restructure to track credit history as ledger instead of single balance row. Add creditChange and reason fields.",
+      "migration": "CREATE TABLE \"CreditLedger\" (\"id\" TEXT PRIMARY KEY, \"userId\" TEXT NOT NULL, \"creditChange\" INTEGER NOT NULL, \"balance\" INTEGER NOT NULL, \"reason\" TEXT NOT NULL, \"transactionId\" TEXT, \"createdAt\" TIMESTAMP DEFAULT NOW()); CREATE INDEX \"CreditLedger_userId_createdAt_idx\" ON \"CreditLedger\"(\"userId\", \"createdAt\" DESC); ALTER TABLE \"Credit\" DROP CONSTRAINT IF EXISTS \"Credit_transactionId_key\";",
+      "reasoning": "Ledger-based credit tracking provides full audit trail of credit changes (purchases, usage, refunds). Enables debugging credit discrepancies and provides transparency to users. Current design only tracks balance without history."
+    },
+    {
+      "model": "StripeWebhookLog",
+      "isNew": true,
+      "schema": "model StripeWebhookLog {\n  id              String   @id @default(cuid())\n  eventId         String   @unique\n  eventType       String\n  status          String   @default(\"pending\")\n  payload         Json\n  error           String?\n  attempts        Int      @default(1)\n  createdAt       DateTime @default(now())\n  processedAt     DateTime?\n  \n  @@index([eventId])\n  @@index([status])\n  @@index([eventType])\n}",
+      "reasoning": "Idempotency enforcement and audit trail for Stripe webhooks. Prevents duplicate credit allocations if Stripe resends events. Error tracking enables debugging payment issues. Critical for financial integrity."
+    },
+    {
+      "model": "Notification",
+      "isNew": true,
+      "schema": "model Notification {\n  id        String   @id @default(cuid())\n  userId    String\n  type      String\n  title     String\n  message   String\n  link      String?\n  read      Boolean  @default(false)\n  createdAt DateTime @default(now())\n  \n  user User @relation(fields: [userId], references: [id], onDelete: Cascade)\n  \n  @@index([userId, read, createdAt])\n  @@index([userId, createdAt])\n}",
+      "reasoning": "Real-time notifications improve engagement. Database persistence ensures notifications survive across sessions and devices. Composite indexes enable efficient querying of unread notifications."
+    },
+    {
+      "model": "TrainerReview",
+      "isNew": true,
+      "schema": "model TrainerReview {\n  id         String   @id @default(cuid())\n  trainerId  String\n  userId     String\n  feedbackId String   @unique\n  rating     Int\n  comment    String?\n  isVerified Boolean  @default(true)\n  createdAt  DateTime @default(now())\n  updatedAt  DateTime @updatedAt\n  \n  trainer  Trainer  @relation(fields: [trainerId], references: [id], onDelete: Cascade)\n  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)\n  feedback Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)\n  \n  @@index([trainerId, createdAt])\n  @@index([userId])\n  @@unique([userId, feedbackId])\n}",
+      "reasoning": "Trainer rating system requires separate model to track reviews. One review per feedback ensures only users who received service can rate. Verified badge indicates review is from actual customer."
+    },
+    {
+      "model": "Purchase",
+      "isNew": true,
+      "schema": "model Purchase {\n  id                   String   @id @default(cuid())\n  userId               String\n  stripeSessionId      String   @unique\n  stripePaymentIntentId String?\n  amount               Int\n  credits              Int\n  status               String   @default(\"pending\")\n  metadata             Json     @default(\"{}\")\n  createdAt            DateTime @default(now())\n  completedAt          DateTime?\n  \n  user User @relation(fields: [userId], references: [id], onDelete: Cascade)\n  \n  @@index([userId, createdAt])\n  @@index([status])\n}",
+      "reasoning": "Dedicated purchase tracking separate from generic Transaction model. Links Stripe session to credit allocation. Enables purchase history page and customer support for payment issues."
+    },
+    {
+      "model": "ApiKey",
+      "isNew": true,
+      "schema": "model ApiKey {\n  id         String   @id @default(cuid())\n  userId     String\n  name       String\n  key        String   @unique\n  lastUsedAt DateTime?\n  expiresAt  DateTime?\n  isActive   Boolean  @default(true)\n  createdAt  DateTime @default(now())\n  \n  user User @relation(fields: [userId], references: [id], onDelete: Cascade)\n  \n  @@index([key])\n  @@index([userId])\n}",
+      "reasoning": "Future-proofing for API access. Enables mobile apps or third-party integrations to authenticate without credentials. Rate limiting can be applied per API key."
+    },
+    {
+      "model": "AdminAction",
+      "isNew": true,
+      "schema": "model AdminAction {\n  id        String   @id @default(cuid())\n  adminId   String\n  action    String\n  targetId  String?\n  targetType String?\n  metadata  Json     @default(\"{}\")\n  createdAt DateTime @default(now())\n  \n  admin User @relation(fields: [adminId], references: [id], onDelete: Cascade)\n  \n  @@index([adminId, createdAt])\n  @@index([targetId])\n}",
+      "reasoning": "Audit trail for admin actions (user bans, trainer verification, refunds). Critical for compliance and investigating abuse. Tracks who did what and when."
+    }
+  ],
+  "apiEnhancements": [
+    {
+      "endpoint": "POST /api/videos/[id]/stream",
+      "purpose": "Proxy video streaming through API to avoid presigned URL expiration during long viewing sessions. Regenerates presigned URL on each chunk request.",
+      "requestSchema": "{ headers: { Range: 'bytes=start-end' } }",
+      "responseSchema": "Video stream with Content-Range headers, partial content 206 response",
+      "authentication": "Required - JWT token in Authorization header or session cookie",
+      "rateLimit": "100 requests per minute per user (prevents abuse while allowing smooth playback)",
+      "caching": "No caching - always stream fresh from S3 with regenerated presigned URLs"
+    },
+    {
+      "endpoint": "GET /api/v1/trainers",
+      "purpose": "Versioned trainer listing endpoint with pagination, filtering, and sorting. Replaces unversioned /api/trainers.",
+      "requestSchema": "{ cursor?: string, limit?: number (default 30, max 100), sort?: 'rating' | 'reviews' | 'recent', specialty?: string, minRating?: number, verified?: boolean }",
+      "responseSchema": "{ trainers: TrainerWithUser[], nextCursor: string | null, hasMore: boolean, total: number }",
+      "authentication": "Optional - returns more details if authenticated",
+      "rateLimit": "60 requests per minute for unauthenticated, 120 for authenticated",
+      "caching": "Redis cache with 5-minute TTL, invalidate on trainer profile updates"
+    },
+    {
+      "endpoint": "GET /api/v1/videos",
+      "purpose": "Versioned video listing with infinite scroll pagination for user dashboard",
+      "requestSchema": "{ cursor?: string, limit?: number (default 20, max 50), status?: VideoStatus, workoutType?: string }",
+      "responseSchema": "{ videos: Video[], nextCursor: string | null, hasMore: boolean }",
+      "authentication": "Required - returns only user's own videos",
+      "rateLimit": "120 requests per minute",
+      "caching": "No caching - always return fresh data for user's own content"
+    },
+    {
+      "endpoint": "POST /api/v1/feedback/[id]/comments",
+      "purpose": "Add timestamped comment to feedback. Used by trainers during video review.",
+      "requestSchema": "{ timestamp: number (seconds), comment: string (1-500 chars) }",
+      "responseSchema": "{ comment: Comment, totalComments: number }",
+      "authentication": "Required - must be assigned trainer for this feedback",
+      "rateLimit": "60 requests per minute (allows rapid comment creation during review)",
+      "caching": "Invalidate feedback cache on comment creation"
+    },
+    {
+      "endpoint": "DELETE /api/v1/feedback/[id]/comments/[commentId]",
+      "purpose": "Delete timestamped comment. Only before feedback submission.",
+      "requestSchema": "No body",
+      "responseSchema": "{ success: boolean, remainingComments: number }",
+      "authentication": "Required - must be comment author and feedback must be IN_PROGRESS",
+      "rateLimit": "60 requests per minute",
+      "caching": "Invalidate feedback cache on comment deletion"
+    },
+    {
+      "endpoint": "POST /api/v1/credits/checkout",
+      "purpose": "Create Stripe Checkout session for credit package purchase",
+      "requestSchema": "{ packageId: string, successUrl?: string, cancelUrl?: string }",
+      "responseSchema": "{ sessionId: string, url: string }",
+      "authentication": "Required - JWT token",
+      "rateLimit": "10 requests per 5 minutes per user (prevent checkout spam)",
+      "caching": "No caching"
+    },
+    {
+      "endpoint": "GET /api/v1/purchases",
+      "purpose": "Retrieve user's purchase history with pagination",
+      "requestSchema": "{ cursor?: string, limit?: number (default 20, max 50) }",
+      "responseSchema": "{ purchases: Purchase[], nextCursor: string | null, hasMore: boolean, totalSpent: number }",
+      "authentication": "Required - returns only user's purchases",
+      "rateLimit": "60 requests per minute",
+      "caching": "Redis cache with 2-minute TTL per user"
+    },
+    {
+      "endpoint": "POST /api/v1/auth/verify-email",
+      "purpose": "Send email verification link to user's email address",
+      "requestSchema": "{ email: string }",
+      "responseSchema": "{ success: boolean, message: string, expiresIn: number }",
+      "authentication": "Optional - can verify during or after registration",
+      "rateLimit": "3 requests per hour per email (prevent email spam)",
+      "caching": "No caching"
+    },
+    {
+      "endpoint": "GET /api/v1/auth/verify/[token]",
+      "purpose": "Verify email address using token from email",
+      "requestSchema": "No body, token in URL",
+      "responseSchema": "{ success: boolean, message: string, redirect?: string }",
+      "authentication": "No auth required - token serves as authentication",
+      "rateLimit": "10 requests per minute per IP (prevent brute force token guessing)",
+      "caching": "No caching"
+    },
+    {
+      "endpoint": "POST /api/v1/auth/forgot-password",
+      "purpose": "Send password reset email with time-limited token",
+      "requestSchema": "{ email: string }",
+      "responseSchema": "{ success: boolean, message: string }",
+      "authentication": "No auth required",
+      "rateLimit": "3 requests per hour per email",
+      "caching": "No caching"
+    },
+    {
+      "endpoint": "POST /api/v1/auth/reset-password",
+      "purpose": "Reset password using token from email",
+      "requestSchema": "{ token: string, newPassword: string (min 8 chars, complexity rules) }",
+      "responseSchema": "{ success: boolean, message: string }",
+      "authentication": "No auth required - token serves as authentication",
+      "rateLimit": "10 requests per hour per IP",
+      "caching": "No caching"
+    },
+    {
+      "endpoint": "GET /api/v1/notifications",
+      "purpose": "Retrieve user's notifications with pagination and filtering",
+      "requestSchema": "{ cursor?: string, limit?: number (default 20, max 50), unreadOnly?: boolean }",
+      "responseSchema": "{ notifications: Notification[], nextCursor: string | null, unreadCount: number }",
+      "authentication": "Required - returns only user's notifications",
+      "rateLimit": "120 requests per minute",
+      "caching": "No caching - notifications are time-sensitive"
+    },
+    {
+      "endpoint": "PATCH /api/v1/notifications/[id]/read",
+      "purpose": "Mark notification as read",
+      "requestSchema": "No body",
+      "responseSchema": "{ success: boolean, notification: Notification }",
+      "authentication": "Required - must own notification",
+      "rateLimit": "120 requests per minute",
+      "caching": "No caching"
+    },
+    {
+      "endpoint": "PATCH /api/v1/notifications/mark-all-read",
+      "purpose": "Mark all user's notifications as read",
+      "requestSchema": "No body",
+      "responseSchema": "{ success: boolean, markedCount: number }",
+      "authentication": "Required",
+      "rateLimit": "10 requests per minute",
+      "caching": "No caching"
+    },
+    {
+      "endpoint": "GET /api/v1/notifications/poll",
+      "purpose": "Poll for new notifications count (used by frontend polling)",
+      "requestSchema": "{ since?: ISO8601 timestamp }",
+      "responseSchema": "{ unreadCount: number, hasNew: boolean, latestNotification?: Notification }",
+      "authentication": "Required",
+      "rateLimit": "120 requests per minute (allows 30-second polling)",
+      "caching": "No caching - real-time data"
+    },
+    {
+      "endpoint": "PATCH /api/v1/user/profile",
+      "purpose": "Update user profile fields (name, fitness level, goals)",
+      "requestSchema": "{ name?: string, fitnessLevel?: FitnessLevel, goals?: string }",
+      "responseSchema": "{ user: User, updated: string[] }",
+      "authentication": "Required",
+      "rateLimit": "30 requests per minute",
+      "caching": "Invalidate user cache on update"
+    },
+    {
+      "endpoint": "POST /api/v1/user/email/change",
+      "purpose": "Initiate email change with verification to new address",
+      "requestSchema": "{ newEmail: string, password: string }",
+      "responseSchema": "{ success: boolean, message: string, verificationSent: boolean }",
+      "authentication": "Required",
+      "rateLimit": "3 requests per hour per user",
+      "caching": "No caching"
+    },
+    {
+      "endpoint": "PATCH /api/v1/user/password",
+      "purpose": "Change password with current password verification",
+      "requestSchema": "{ currentPassword: string, newPassword: string }",
+      "responseSchema": "{ success: boolean, message: string }",
+      "authentication": "Required",
+      "rateLimit": "5 requests per hour per user",
+      "caching": "No caching"
+    },
+    {
+      "endpoint": "PATCH /api/v1/trainer/profile",
+      "purpose": "Update trainer-specific profile fields",
+      "requestSchema": "{ bio?: string, specialties?: string[], hourlyRate?: number, availableHours?: object, maxDailyReviews?: number }",
+      "responseSchema": "{ trainer: Trainer, updated: string[] }",
+      "authentication": "Required - must have TRAINER role",
+      "rateLimit": "30 requests per minute",
+      "caching": "Invalidate trainer cache and listings cache on update"
+    },
+    {
+      "endpoint": "POST /api/v1/trainers/[id]/reviews",
+      "purpose": "Submit review and rating for trainer after receiving feedback",
+      "requestSchema": "{ feedbackId: string, rating: number (1-5), comment?: string }",
+      "responseSchema": "{ review: TrainerReview, trainerNewRating: number }",
+      "authentication": "Required - must have received feedback from this trainer",
+      "rateLimit": "10 requests per hour",
+      "caching": "Invalidate trainer cache on review submission"
+    },
+    {
+      "endpoint": "GET /api/v1/trainers/[id]/reviews",
+      "purpose": "Get paginated reviews for a trainer",
+      "requestSchema": "{ cursor?: string, limit?: number (default 10, max 50) }",
+      "responseSchema": "{ reviews: TrainerReview[], nextCursor: string | null, averageRating: number, totalReviews: number }",
+      "authentication": "Optional",
+      "rateLimit": "60 requests per minute",
+      "caching": "Redis cache with 10-minute TTL"
+    },
+    {
+      "endpoint": "GET /api/v1/admin/users",
+      "purpose": "Admin endpoint to list and search users with filters",
+      "requestSchema": "{ cursor?: string, limit?: number, role?: Role, search?: string, emailVerified?: boolean }",
+      "responseSchema": "{ users: User[], nextCursor: string | null, total: number }",
+      "authentication": "Required - ADMIN role only",
+      "rateLimit": "120 requests per minute",
+      "caching": "No caching - admin data should be real-time"
+    },
+    {
+      "endpoint": "PATCH /api/v1/admin/trainers/[id]/verify",
+      "purpose": "Admin endpoint to verify trainer certification",
+      "requestSchema": "{ isVerified: boolean, notes?: string }",
+      "responseSchema": "{ trainer: Trainer, action: AdminAction }",
+      "authentication": "Required - ADMIN role only",
+      "rateLimit": "60 requests per minute",
+      "caching": "Invalidate trainer cache"
+    },
+    {
+      "endpoint": "GET /api/v1/admin/analytics",
+      "purpose": "Admin dashboard analytics endpoint",
+      "requestSchema": "{ dateFrom?: ISO8601, dateTo?: ISO8601 }",
+      "responseSchema": "{ totalUsers: number, totalTrainers: number, totalRevenue: number, activeVideos: number, completedFeedback: number, chartData: object }",
+      "authentication": "Required - ADMIN role only",
+      "rateLimit": "30 requests per minute",
+      "caching": "Redis cache with 5-minute TTL"
+    }
+  ],
+  "infrastructureNeeds": {
+    "caching": {
+      "service": "Upstash Redis (serverless Redis optimized for Next.js and Vercel)",
+      "useCases": [
+        "Trainer listings with 5-minute TTL",
+        "Trainer detail pages with 10-minute TTL",
+        "User credit balance with 1-minute TTL",
+        "Purchase history with 2-minute TTL",
+        "Rate limiting counters with sliding window",
+        "Session storage for multi-server deployments",
+        "Admin analytics with 5-minute TTL"
+      ],
+      "implementation": "Install @upstash/redis and @upstash/ratelimit. Create /lib/redis.ts with singleton client. Create /lib/cache.ts with helper functions: get, set, del, invalidate. Implement cache-aside pattern: check cache, if miss fetch from DB and populate cache. Use Redis SETEX for automatic TTL. For rate limiting, use @upstash/ratelimit with sliding window algorithm. Environment variables: UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN."
+    },
+    "queueing": {
+      "service": "Inngest (serverless background jobs and workflows) or BullMQ with Redis",
+      "useCases": [
+        "Video processing: thumbnail generation, compression, format conversion",
+        "Email sending: verification emails, password resets, feedback notifications",
+        "Webhook retries: Stripe webhook failures with exponential backoff",
+        "Cleanup jobs: abandoned S3 uploads, expired tokens",
+        "Analytics aggregation: daily/weekly reports",
+        "Notification dispatching: batch processing of notifications"
+      ],
+      "implementation": "Recommended: Inngest for serverless simplicity. Install inngest and @inngest/next. Create /inngest/functions/ directory for job definitions. Define functions for: processVideo, sendEmail, retryWebhook, cleanupUploads. Configure Inngest client in /lib/inngest.ts. Create API route /api/inngest for Inngest to call. For local development, run Inngest dev server. For BullMQ alternative: install bullmq, create /lib/queues.ts, define queues and workers, requires Redis instance."
+    },
+    "monitoring": {
+      "errorTracking": "Sentry - Install @sentry/nextjs. Configure in sentry.client.config.ts and sentry.server.config.ts. Capture unhandled errors, API errors, and custom events. Add user context (ID, email) to error reports. Set up source maps for production debugging.",
+      "analytics": "PostHog (open source, self-hosted option available) - Install posthog-js. Track custom events: video_uploaded, feedback_received, credit_purchased, trainer_selected. Track page views and user flows. Create funnels for conversion tracking. Privacy-friendly alternative to Google Analytics.",
+      "apm": "Vercel Analytics + Vercel Speed Insights for Next.js-specific metrics. Install @vercel/analytics and @vercel/speed-insights. Tracks Core Web Vitals, page load times, API response times. For self-hosted: OpenTelemetry with Jaeger or New Relic.",
+      "implementation": "Phase 1: Sentry for error tracking (critical). Phase 2: PostHog for product analytics. Phase 3: APM for performance monitoring. Create /lib/monitoring.ts with wrapper functions for consistent tracking. Add monitoring middleware to capture API performance. Set up alerts for error rate spikes and slow API responses."
+    },
+    "cdn": {
+      "service": "Cloudflare CDN (free tier available) or Vercel Edge Network",
+      "useCases": [
+        "Static assets (images, fonts, CSS)",
+        "Video thumbnails (once generated)",
+        "Trainer profile images",
+        "Public pages (landing page, pricing)"
+      ],
+      "implementation": "For Vercel deployment: automatic Edge Network for static assets. Add Cache-Control headers to static files. For videos: consider Cloudflare R2 + CDN instead of S3 for lower bandwidth costs. Configure in next.config.js headers with appropriate cache durations. Use Image Optimization API for on-demand image resizing."
+    },
+    "search": {
+      "service": "PostgreSQL Full-Text Search (built-in) initially, upgrade to Algolia or Meilisearch for advanced search",
+      "useCases": [
+        "Trainer search by name, specialties, bio",
+        "Video search by title, description, workout type",
+        "Admin user search by name, email"
+      ],
+      "implementation": "Phase 1: Use Prisma full-text search with PostgreSQL tsvector. Add computed columns for search vectors. Phase 2: For better UX, integrate Meilisearch (open source, fast). Install meilisearch-js, set up index sync on data changes, implement search API endpoints. Meilisearch provides typo tolerance, faceted search, and instant results."
+    },
+    "fileStorage": {
+      "service": "AWS S3 for primary storage, consider Cloudflare R2 for cost optimization",
+      "useCases": [
+        "Video files (large objects)",
+        "Trainer certification documents (PDF)",
+        "Generated thumbnails",
+        "User profile images (future)"
+      ],
+      "implementation": "Current S3 setup is good. Enhancements: (1) Implement lifecycle policies to archive old videos to S3 Glacier after 1 year, (2) Add S3 bucket versioning for deletion protection, (3) Configure CloudFront as CDN for S3 content, (4) Implement multipart upload for files >100MB, (5) Add cleanup job for abandoned uploads (presigned URL generated but no DB record). For cost savings: migrate to Cloudflare R2 (S3-compatible, free egress bandwidth)."
+    }
+  },
+  "securityEnhancements": [
+    {
+      "area": "Input Validation",
+      "currentState": "Zod is installed but not consistently used. Many API routes accept input without validation.",
+      "enhancement": "Create comprehensive Zod schemas for all API inputs in /lib/validations.ts. Validate all request bodies, query params, and file uploads.",
+      "implementation": "Define schemas for: CreateVideoSchema, CreateFeedbackSchema, CreateCommentSchema, UpdateProfileSchema, LoginSchema, RegisterSchema. Create middleware /lib/middleware/validate.ts that wraps route handlers and validates against schema. Return 400 with detailed validation errors. Example: const CreateVideoSchema = z.object({ title: z.string().min(3).max(100), description: z.string().max(500).optional(), workoutType: z.enum(['strength', 'cardio', 'flexibility']), fileSize: z.number().max(500_000_000) })"
+    },
+    {
+      "area": "Rate Limiting",
+      "currentState": "No rate limiting implemented. All endpoints are vulnerable to abuse and DDoS attacks.",
+      "enhancement": "Implement sliding window rate limiting using @upstash/ratelimit with different limits per endpoint type.",
+      "implementation": "Create /lib/middleware/rateLimit.ts with presets: authLimit (5 req/15min), apiLimit (120 req/min), publicLimit (60 req/min), uploadLimit (10 req/hour). Use Upstash Redis for distributed rate limiting (works across serverless instances). Apply middleware to route handlers: export const POST = rateLimit(authLimit, async (req) => {...}). Return 429 with Retry-After header. Track rate limits per user ID for authenticated, per IP for unauthenticated."
+    },
+    {
+      "area": "Authentication Security",
+      "currentState": "Passwords are hashed with bcrypt (good), but no account lockout, no 2FA, weak password requirements.",
+      "enhancement": "Add failed login tracking, account lockout, password complexity requirements, optional 2FA with TOTP.",
+      "implementation": "Add loginAttempts and lockedUntil fields to User model. Track failed logins in database. Lock account for 1 hour after 5 failed attempts. Require passwords: min 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char. Use Zod schema with regex validation. For 2FA: add totpSecret field to User model, use speakeasy library to generate/verify TOTP codes, create /api/auth/2fa/setup and /api/auth/2fa/verify endpoints. Make 2FA optional but encourage during signup."
+    },
+    {
+      "area": "CSRF Protection",
+      "currentState": "Relies on NextAuth.js default CSRF protection only. API routes have no additional CSRF tokens.",
+      "enhancement": "Implement double-submit cookie pattern for all state-changing API routes.",
+      "implementation": "Use Next.js middleware to set CSRF token cookie on all GET requests. Require CSRF token in X-CSRF-Token header for POST/PATCH/DELETE requests. Validate token match in middleware. Edge function middleware: export function middleware(req) { if (req.method !== 'GET') { const cookieToken = req.cookies.get('csrf-token'); const headerToken = req.headers.get('x-csrf-token'); if (cookieToken !== headerToken) return new Response('CSRF validation failed', { status: 403 }); } }. Exempt webhook endpoints that validate signatures differently."
+    },
+    {
+      "area": "XSS Prevention",
+      "currentState": "User-generated content (feedback, comments) is not sanitized. React escapes by default but JSON injection is possible.",
+      "enhancement": "Sanitize all HTML content server-side before storage using DOMPurify or isomorphic-dompurify.",
+      "implementation": "Install isomorphic-dompurify. Create /lib/sanitize.ts utility: export const sanitizeHtml = (dirty: string) => DOMPurify.sanitize(dirty, { ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'p', 'br'], ALLOWED_ATTR: [] }). Apply to all user content before DB insert: const sanitized = sanitizeHtml(feedback.content). For plain text content, use DOMPurify with ALLOWED_TAGS: [] to strip all HTML."
+    },
+    {
+      "area": "SQL Injection",
+      "currentState": "Prisma ORM provides protection via parameterized queries, but raw SQL queries would be vulnerable.",
+      "enhancement": "Audit all database queries to ensure no raw SQL. Add linting rules to prevent unsafe Prisma.$queryRaw usage.",
+      "implementation": "ESLint rule to flag Prisma.$queryRaw. If raw queries are necessary, always use parameterized queries: prisma.$queryRaw`SELECT * FROM User WHERE id = ${userId}` (uses template literal for safe interpolation). Never concatenate user input: ❌ prisma.$queryRawUnsafe(`SELECT * FROM User WHERE id = '${userId}'`). Add database query logging in development to review all queries."
+    },
+    {
+      "area": "File Upload Security",
+      "currentState": "File type validation is client-side only. No file size enforcement server-side. No virus scanning.",
+      "enhancement": "Server-side file validation using magic numbers, strict size limits, consider virus scanning for production.",
+      "implementation": "Install file-type package. In upload API route, validate file type by reading magic numbers (first bytes): const fileTypeResult = await fileType.fromBuffer(buffer); if (!['video/mp4', 'video/quicktime'].includes(fileTypeResult.mime)) throw error. Enforce size limit: if (fileSize > 500_000_000) throw error. For production: integrate ClamAV or CloudMQ for virus scanning before accepting uploads. Quarantine suspicious files."
+    },
+    {
+      "area": "Secrets Management",
+      "currentState": "Environment variables in .env file. No validation. Some have empty string fallbacks (dangerous).",
+      "enhancement": "Remove all fallbacks, validate required secrets on startup, consider HashiCorp Vault or AWS Secrets Manager for production.",
+      "implementation": "Create /lib/env.ts with Zod schema: const envSchema = z.object({ DATABASE_URL: z.string().url(), NEXTAUTH_SECRET: z.string().min(32), STRIPE_SECRET_KEY: z.string().startsWith('sk_'), STRIPE_WEBHOOK_SECRET: z.string().startsWith('whsec_'), AWS_ACCESS_KEY_ID: z.string().min(16), AWS_SECRET_ACCESS_KEY: z.string().min(40) }). Call envSchema.parse(process.env) in root layout and middleware. App crashes with clear error if any secret is missing. For production: rotate secrets regularly, use AWS Secrets Manager with automatic rotation."
+    },
+    {
+      "area": "Security Headers",
+      "currentState": "No custom security headers configured. Missing CSP, X-Frame-Options, HSTS, etc.",
+      "enhancement": "Implement comprehensive security headers in Next.js middleware or next.config.js.",
+      "implementation": "Add to next.config.js headers: Content-Security-Policy (restrict script sources to same-origin and trusted CDNs), X-Frame-Options: DENY (prevent clickjacking), X-Content-Type-Options: nosniff, Referrer-Policy: strict-origin-when-cross-origin, Permissions-Policy (restrict camera, microphone, geolocation), Strict-Transport-Security: max-age=31536000; includeSubDomains (enforce HTTPS). Example CSP: \"default-src 'self'; script-src 'self' 'unsafe-inline' https://js.stripe.com; connect-src 'self' https://api.stripe.com; frame-src https://js.stripe.com; img-src 'self' data: https:; style-src 'self' 'unsafe-inline';\""
+    },
+    {
+      "area": "Session Security",
+      "currentState": "JWT sessions with NextAuth.js. No session rotation, no refresh tokens, long expiry.",
+      "enhancement": "Implement session refresh tokens, rotate session IDs on privilege changes, add session timeout.",
+      "implementation": "Configure NextAuth.js with shorter JWT expiry (1 hour instead of 30 days). Implement refresh token mechanism: store refreshToken in database Session model, when JWT expires frontend requests new JWT using refresh token. Rotate refresh token on each use (one-time use). Add sessionVersion field to User model, increment on password change or role change, invalidate all sessions when version doesn't match. Add idle timeout: track lastActivity in session, expire if no activity for 30 minutes."
+    },
+    {
+      "area": "API Authorization",
+      "currentState": "Some API routes check authentication but don't verify user owns the resource being accessed.",
+      "enhancement": "Implement resource-based authorization checks in all routes. Ensure users can only access their own data.",
+      "implementation": "Create /lib/authorization.ts with helpers: canAccessVideo(userId, videoId), canProvideFeedback(trainerId, videoId), canModifyUser(requesterId, targetUserId, role). Use in route handlers before any operations: const video = await prisma.video.findUnique({ where: { id } }); if (video.userId !== session.user.id && session.user.role !== 'ADMIN') return new Response('Forbidden', { status: 403 }). Create reusable middleware: withAuth, withRole(['TRAINER', 'ADMIN']), withResourceAccess."
+    },
+    {
+      "area": "Webhook Validation",
+      "currentState": "Stripe webhook signature verification has unsafe fallback to empty string.",
+      "enhancement": "Remove fallback, enforce signature validation, add replay protection, log all webhooks.",
+      "implementation": "Update webhook route: const sig = req.headers.get('stripe-signature'); if (!sig || !process.env.STRIPE_WEBHOOK_SECRET) return new Response('Webhook secret not configured', { status: 500 }). Verify signature: const event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET). Add idempotency check using StripeWebhookLog.eventId before processing. Implement at-least-once processing: transaction wrapper ensures credit allocation and log insertion are atomic. Add monitoring for webhook failures."
+    }
+  ],
+  "performanceOptimizations": [
+    {
+      "area": "Database Queries",
+      "issue": "N+1 query problems, missing indexes, over-fetching with select *, inefficient joins",
+      "solution": "Add composite indexes on frequently filtered columns, use Prisma select() to fetch only needed fields, implement includes with nested selects, use connection pooling",
+      "expectedImprovement": "50-70% reduction in query execution time, 40% reduction in database load",
+      "implementation": "Add indexes: CREATE INDEX idx_video_user_created ON Video(userId, createdAt DESC); CREATE INDEX idx_feedback_trainer_status ON Feedback(trainerId, status); CREATE INDEX idx_trainer_rating_active ON Trainer(rating DESC, isActive). Update queries: prisma.video.findMany({ where: { userId }, select: { id: true, title: true, createdAt: true, status: true }, take: 20, orderBy: { createdAt: 'desc' } }). Use include for relations instead of separate queries: prisma.feedback.findMany({ include: { trainer: { select: { user: { select: { name: true } }, rating: true } } } }). Enable Prisma connection pooling via pgBouncer or Supabase Pooler."
+    },
+    {
+      "area": "Caching Strategy",
+      "issue": "No caching layer. Every request hits database even for static data like trainer listings.",
+      "solution": "Implement Redis caching with appropriate TTLs, use cache-aside pattern, invalidate on writes",
+      "expectedImprovement": "80% reduction in database queries for cached endpoints, 60% faster response times for trainer listings",
+      "implementation": "Install Upstash Redis. Create cache wrapper: async function getCached<T>(key: string, fetcher: () => Promise<T>, ttl: number): Promise<T> { const cached = await redis.get(key); if (cached) return JSON.parse(cached); const fresh = await fetcher(); await redis.setex(key, ttl, JSON.stringify(fresh)); return fresh; }. Use in trainer listing: const trainers = await getCached('trainers:all', () => prisma.trainer.findMany({...}), 300). Invalidate on updates: await redis.del('trainers:all') in trainer update route."
+    },
+    {
+      "area": "Image Optimization",
+      "issue": "next/image not used anywhere. Trainer avatars and thumbnails not optimized.",
+      "solution": "Use next/image for all images, implement automatic WebP conversion, lazy loading, responsive sizes",
+      "expectedImprovement": "70% reduction in image payload size, faster page loads, improved Lighthouse scores",
+      "implementation": "Replace <img> tags with <Image> from next/image. Configure next.config.js images: { domains: ['your-s3-bucket.s3.amazonaws.com'], formats: ['image/webp', 'image/avif'], deviceSizes: [640, 750, 828, 1080, 1200, 1920], imageSizes: [16, 32, 48, 64, 96, 128, 256, 384] }. Use sizes prop for responsive images: <Image src={trainer.avatar} alt='' width={200} height={200} sizes='(max-width: 768px) 100vw, 200px' />. Enable lazy loading (default in next/image)."
+    },
+    {
+      "area": "Code Splitting",
+      "issue": "No manual code splitting. Large components loaded on every page. Heavy libraries not lazy-loaded.",
+      "solution": "Lazy load heavy components (VideoPlayer, UploadForm), implement route-based splitting, dynamic imports for libraries",
+      "expectedImprovement": "40% reduction in initial bundle size, 30% faster Time to Interactive",
+      "implementation": "Use next/dynamic for heavy components: const VideoPlayer = dynamic(() => import('@/components/VideoPlayer'), { loading: () => <Skeleton />, ssr: false }). Lazy load libraries: const stripe = await import('stripe').then(m => new m.default(...)). Route-based splitting is automatic in Next.js App Router. Analyze bundle: npm install @next/bundle-analyzer, add to next.config.js, run ANALYZE=true npm run build to identify large dependencies."
+    },
+    {
+      "area": "API Response Size",
+      "issue": "No response compression. Large JSON payloads for lists. Over-fetching data.",
+      "solution": "Enable Brotli/Gzip compression, implement field selection in API, paginate all lists",
+      "expectedImprovement": "60% reduction in API response size, faster network transfer",
+      "implementation": "Next.js automatically compresses responses in production. For explicit control, add compression middleware. Implement GraphQL-style field selection: GET /api/videos?fields=id,title,createdAt. Update queries: const selectedFields = req.query.fields?.split(',').reduce((acc, field) => ({ ...acc, [field]: true }), {}) || defaultFields; return prisma.video.findMany({ select: selectedFields }). Always paginate: never return unbounded lists."
+    },
+    {
+      "area": "Database Connection Pooling",
+      "issue": "Prisma client created without pooling optimization. Connections exhausted under load.",
+      "solution": "Configure Prisma connection pooling, use PgBouncer for connection management, optimize pool size",
+      "expectedImprovement": "Handle 5x more concurrent requests, prevent connection exhaustion errors",
+      "implementation": "Add to Prisma schema: datasource db { provider = 'postgresql', url = env('DATABASE_URL'), connection_limit = 10 }. For serverless: use Prisma Data Proxy or PgBouncer. Configure pool size based on (num_instances * connection_limit) < max_db_connections. For PostgreSQL: max_connections = 100, if 5 Next.js instances, set connection_limit = 15. Monitor connection usage: SELECT count(*) FROM pg_stat_activity."
+    },
+    {
+      "area": "Static Generation",
+      "issue": "All pages are dynamically rendered. Public pages (landing, pricing) could be static.",
+      "solution": "Use generateStaticParams for static pages, implement ISR for trainer listings, edge rendering for auth",
+      "expectedImprovement": "Instant page loads for static content, 90% reduction in server load for public pages",
+      "implementation": "Make landing page static: export const dynamic = 'force-static' in app/page.tsx. Use ISR for trainer listings: export const revalidate = 300 (revalidate every 5 minutes). Generate static params for trainer pages: export async function generateStaticParams() { const trainers = await prisma.trainer.findMany({ take: 50, orderBy: { rating: 'desc' } }); return trainers.map(t => ({ id: t.id })); }. Use Edge Runtime for auth middleware: export const config = { runtime: 'edge' }."
+    },
+    {
+      "area": "Video Delivery",
+      "issue": "Large video files served through Next.js API route. No streaming optimization or CDN.",
+      "solution": "Implement proper video streaming with range requests, use CloudFront CDN, generate multiple quality versions",
+      "expectedImprovement": "90% reduction in server bandwidth, instant video start, adaptive quality",
+      "implementation": "Update video streaming endpoint to support Range headers: const range = req.headers.get('range'); const videoStream = await s3.send(new GetObjectCommand({ Bucket, Key, Range: range })); return new Response(videoStream.Body, { status: 206, headers: { 'Content-Type': 'video/mp4', 'Content-Range': `bytes ${start}-${end}/${size}`, 'Accept-Ranges': 'bytes' } }). Configure CloudFront distribution for S3 bucket. Generate multiple quality versions (480p, 720p, 1080p) during processing."
+    },
+    {
+      "area": "React Query Configuration",
+      "issue": "Short staleTime (60s) causes frequent refetching. No query deduplication. Missing optimistic updates.",
+      "solution": "Optimize staleTime per query type, enable query deduplication, implement optimistic updates for mutations",
+      "expectedImprovement": "40% reduction in unnecessary network requests, instant UI feedback for user actions",
+      "implementation": "Increase staleTime for stable data: useQuery({ queryKey: ['trainers'], queryFn: fetchTrainers, staleTime: 5 * 60 * 1000 }). Enable deduplication (default in React Query). Add optimistic updates: useMutation({ mutationFn: updateProfile, onMutate: async (newData) => { await queryClient.cancelQueries(['profile']); const previous = queryClient.getQueryData(['profile']); queryClient.setQueryData(['profile'], { ...previous, ...newData }); return { previous }; }, onError: (err, variables, context) => { queryClient.setQueryData(['profile'], context.previous); } })."
+    },
+    {
+      "area": "Lazy Loading & Prefetching",
+      "issue": "No prefetching of likely next pages. All components eagerly loaded. No intersection observer for below-fold content.",
+      "solution": "Prefetch trainer details on hover, lazy load below-fold components, implement virtual scrolling for long lists",
+      "expectedImprovement": "Instant navigation perception, 50% reduction in initial render time",
+      "implementation": "Prefetch on hover: <Link href='/trainers/123' onMouseEnter={() => queryClient.prefetchQuery(['trainer', '123'], fetchTrainer)}>. Lazy load below-fold: const BelowFoldContent = dynamic(() => import('./BelowFold')). Virtual scrolling for long lists: use @tanstack/react-virtual for video list with 1000+ items. Intersection observer for images: <Image loading='lazy' />."
+    }
+  ],
+  "thirdPartyIntegrations": [
+    {
+      "service": "Upstash Redis",
+      "purpose": "Serverless Redis for caching and rate limiting",
+      "setupSteps": [
+        "Sign up at upstash.com and create new Redis database (free tier: 10k commands/day)",
+        "Copy REST URL and token from database dashboard",
+        "Install packages: npm install @upstash/redis @upstash/ratelimit",
+        "Add to .env: UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN",
+        "Create /lib/redis.ts with client initialization",
+        "Create /lib/cache.ts with cache helper functions",
+        "Create /lib/middleware/rateLimit.ts with rate limiting middleware",
+        "Test locally with dev database, use production database for deployment"
+      ],
+      "envVars": [
+        "UPSTASH_REDIS_REST_URL",
+        "UPSTASH_REDIS_REST_TOKEN"
+      ],
+      "estimatedCost": "$0-20/month (free tier covers most needs, paid tier $0.20 per 100k commands)"
+    },
+    {
+      "service": "Sentry",
+      "purpose": "Error tracking and performance monitoring",
+      "setupSteps": [
+        "Sign up at sentry.io (free tier: 5k errors/month)",
+        "Create new Next.js project in Sentry dashboard",
+        "Run npx @sentry/wizard@latest -i nextjs",
+        "Configure error sampling rate in sentry configs (1.0 for dev, 0.1 for prod)",
+        "Add user context in NextAuth callback: Sentry.setUser({ id, email, role })",
+        "Test error tracking: throw new Error('Test Sentry') in dev",
+        "Set up alerts for error rate spikes in Sentry dashboard"
+      ],
+      "envVars": [
+        "NEXT_PUBLIC_SENTRY_DSN",
+        "SENTRY_AUTH_TOKEN (for uploading source maps)"
+      ],
+      "estimatedCost": "$0-26/month (free tier sufficient for MVP, Team plan $26/month for larger scale)"
+    },
+    {
+      "service": "PostHog",
+      "purpose": "Product analytics and feature flags",
+      "setupSteps": [
+        "Sign up at posthog.com (free tier: 1M events/month)",
+        "Create new project and get API key",
+        "Install: npm install posthog-js",
+        "Create /lib/posthog.ts with client initialization",
+        "Add provider in app/layout.tsx to initialize on mount",
+        "Track custom events: posthog.capture('video_uploaded', { workoutType, duration })",
+        "Create funnels in PostHog dashboard: signup → upload → purchase",
+        "Set up session recording for debugging UX issues (opt-in only for privacy)"
+      ],
+      "envVars": [
+        "NEXT_PUBLIC_POSTHOG_KEY",
+        "NEXT_PUBLIC_POSTHOG_HOST"
+      ],
+      "estimatedCost": "$0-25/month (free tier sufficient for most, paid for high-volume)"
+    },
+    {
+      "service": "Inngest",
+      "purpose": "Serverless background jobs and workflows",
+      "setupSteps": [
+        "Sign up at inngest.com (free tier: 1k function runs/month)",
+        "Install: npm install inngest @inngest/next",
+        "Create /inngest/client.ts with Inngest client",
+        "Create /inngest/functions/ directory for job definitions",
+        "Define functions: processVideo.ts, sendEmail.ts, cleanupUploads.ts",
+        "Create /app/api/inngest/route.ts to serve Inngest events",
+        "Deploy and register functions via Inngest dashboard",
+        "Test locally with Inngest dev server: npx inngest-cli dev"
+      ],
+      "envVars": [
+        "INNGEST_EVENT_KEY",
+        "INNGEST_SIGNING_KEY"
+      ],
+      "estimatedCost": "$0-25/month (free tier for MVP, Pro plan $25/month for production)"
+    },
+    {
+      "service": "Cloudflare R2",
+      "purpose": "S3-compatible storage with zero egress fees (cost optimization for video delivery)",
+      "setupSteps": [
+        "Sign up at cloudflare.com and enable R2 (free tier: 10GB storage, 1M Class A ops/month)",
+        "Create R2 bucket via dashboard",
+        "Generate R2 API token with read/write permissions",
+        "S3 SDK is compatible: use @aws-sdk/client-s3 with R2 endpoint",
+        "Update /lib/s3.ts to use R2 endpoint: endpoint: 'https://ACCOUNT_ID.r2.cloudflarestorage.com'",
+        "Migrate existing S3 data using rclone or AWS CLI with custom endpoint",
+        "Configure custom domain for R2 bucket for cleaner URLs"
+      ],
+      "envVars": [
+        "R2_ACCOUNT_ID",
+        "R2_ACCESS_KEY_ID",
+        "R2_SECRET_ACCESS_KEY",
+        "R2_BUCKET_NAME"
+      ],
+      "estimatedCost": "$0-15/month (free tier covers most, $0.015/GB/month storage, zero egress vs S3's $0.09/GB)"
+    },
+    {
+      "service": "Resend",
+      "purpose": "Modern email API (better developer experience than NodeMailer with SMTP)",
+      "setupSteps": [
+        "Sign up at resend.com (free tier: 100 emails/day)",
+        "Verify domain ownership (add DNS records)",
+        "Get API key from dashboard",
+        "Install: npm install resend",
+        "Replace NodeMailer in /lib/email.ts with Resend client",
+        "Create email templates using React Email: npm install react-email @react-email/components",
+        "Design templates: VerificationEmail.tsx, PasswordResetEmail.tsx, FeedbackReadyEmail.tsx",
+        "Send emails: await resend.emails.send({ from: 'noreply@formfit.com', to, subject, react: <EmailTemplate /> })"
+      ],
+      "envVars": [
+        "RESEND_API_KEY"
+      ],
+      "estimatedCost": "$0-20/month (free tier for MVP, Pro plan $20/month for 50k emails)"
+    },
+    {
+      "service": "Vercel (Deployment Platform)",
+      "purpose": "Hosting, CI/CD, Edge Network, Analytics",
+      "setupSteps": [
+        "Connect GitHub repo to Vercel via vercel.com/new",
+        "Configure build settings (auto-detected for Next.js)",
+        "Add environment variables in Vercel dashboard (all from .env)",
+        "Enable Vercel Analytics: npm install @vercel/analytics",
+        "Enable Speed Insights: npm install @vercel/speed-insights",
+        "Configure custom domain via Vercel dashboard",
+        "Set up preview deployments for PRs (automatic)",
+        "Configure production environment protection (require approval for sensitive changes)"
+      ],
+      "envVars": [
+        "All existing env vars from .env",
+        "NODE_ENV=production (auto-set by Vercel)"
+      ],
+      "estimatedCost": "$0-20/month (Hobby plan free for personal projects, Pro plan $20/month for commercial use with better limits)"
+    }
+  ],
+  "testingStrategy": {
+    "unit": {
+      "framework": "Vitest (faster than Jest, better Next.js support)",
+      "coverage": [
+        "Utility functions in /lib: validations.ts, auth.ts, email.ts, s3.ts, stripe.ts",
+        "Cache helper functions",
+        "Rate limiting logic",
+        "Data sanitization functions",
+        "Custom hooks if any"
+      ],
+      "setup": "Install vitest, @testing-library/react, @testing-library/jest-dom. Create vitest.config.ts with path aliases matching tsconfig. Write tests in /tests/unit/ or co-located *.test.ts files. Target 80%+ coverage for utility functions.",
+      "example": "describe('sanitizeHtml', () => { it('removes script tags', () => { expect(sanitizeHtml('<script>alert(1)</script>text')).toBe('text'); }); });"
+    },
+    "integration": {
+      "framework": "Vitest with MSW (Mock Service Worker) for API mocking",
+      "coverage": [
+        "API routes: test request validation, authentication, authorization, response format",
+        "Database operations: test Prisma queries with test database",
+        "Webhook handlers: test Stripe webhook signature verification and processing",
+        "Authentication flows: registration, login, logout, session refresh"
+      ],
+      "setup": "Install msw, @prisma/client for test DB. Create test database separate from development. Use MSW to mock external services (Stripe, S3, email). Write tests in /tests/integration/api/. Use beforeEach to seed test data and afterEach to cleanup.",
+      "example": "describe('POST /api/videos', () => { it('requires authentication', async () => { const res = await fetch('/api/videos', { method: 'POST' }); expect(res.status).toBe(401); }); });"
+    },
+    "e2e": {
+      "framework": "Playwright (better than Cypress for Next.js, supports multiple browsers)",
+      "coverage": [
+        "Critical user flows: signup → verify email → login → upload video → select trainer → view feedback",
+        "Payment flow: purchase credits → Stripe checkout → webhook processing → credit allocation",
+        "Trainer flow: login as trainer → view assignments → provide feedback with timestamps → submit",
+        "Error scenarios: network failures, validation errors, payment failures",
+        "Mobile responsive testing on various viewports"
+      ],
+      "setup": "Install @playwright/test. Run npx playwright install to download browsers. Create /tests/e2e/ directory. Configure playwright.config.ts with baseURL, test database, headed mode for debugging. Use page object pattern for reusable components. Run tests in CI on every PR.",
+      "example": "test('user can upload video', async ({ page }) => { await page.goto('/upload'); await page.fill('[name=title]', 'Test Video'); await page.setInputFiles('[type=file]', 'test-video.mp4'); await page.click('button[type=submit]'); await expect(page.locator('text=Upload successful')).toBeVisible(); });"
+    },
+    "coverage": {
+      "target": "80% overall coverage",
+      "breakdown": {
+        "utilities": "90%+ coverage (critical business logic)",
+        "apiRoutes": "80%+ coverage (all happy paths and main error paths)",
+        "components": "60%+ coverage (focus on logic, not just rendering)",
+        "e2e": "100% coverage of critical user flows"
+      },
+      "tools": "Vitest coverage with v8 provider. Generate reports: vitest --coverage. View HTML report in coverage/index.html. Add coverage thresholds in vitest.config.ts to prevent regressions.",
+      "enforcement": "CI pipeline fails if coverage drops below thresholds. Require coverage report comment on PRs."
+    },
+    "cicd": {
+      "platform": "GitHub Actions",
+      "workflow": [
+        "On PR: run linter (ESLint), type checking (tsc --noEmit), unit tests, integration tests",
+        "On merge to main: run all tests + E2E tests, build production bundle, deploy to Vercel preview",
+        "On release tag: deploy to Vercel production, run smoke tests against production",
+        "Nightly: run full E2E test suite, generate coverage reports, check for dependency vulnerabilities"
+      ],
+      "setup": "Create .github/workflows/test.yml. Use actions: checkout, setup-node, cache dependencies, run tests, upload coverage to Codecov. Create .github/workflows/deploy.yml for deployment. Add required status checks in GitHub repo settings to enforce passing tests before merge.",
+      "example": ".github/workflows/test.yml: on: [pull_request] jobs: test: runs-on: ubuntu-latest steps: - uses: actions/checkout@v3 - uses: actions/setup-node@v3 with: { node-version: '18', cache: 'npm' } - run: npm ci - run: npm run lint - run: npm run type-check - run: npm run test:unit - run: npm run test:integration"
+    }
+  },
+  "apiVersioning": {
+    "strategy": "URL path versioning (e.g., /api/v1/videos) for clear version indication and easy routing",
+    "implementation": "Create /app/api/v1/ directory structure. Move current routes to v1. Set up version detection middleware. Maintain backward compatibility for at least 6 months after deprecation notice. Use API version header as fallback: Accept-Version: v1.",
+    "deprecationPolicy": "Announce deprecation 3 months in advance via email to developers, add deprecation headers (Sunset: date), log deprecation warnings, maintain docs for legacy versions.",
+    "reasoning": "Prevents breaking changes from affecting existing clients. Enables gradual migration to new API versions. Industry standard practice."
+  },
+  "observability": {
+    "logging": {
+      "strategy": "Structured JSON logging with correlation IDs for request tracing",
+      "implementation": "Create /lib/logger.ts using pino (fast, low-overhead). Log levels: error, warn, info, debug. Include: timestamp, level, message, userId, requestId, metadata. Example: logger.info({ userId, videoId, duration }, 'Video uploaded successfully'). Send logs to Axiom or Datadog for aggregation and search.",
+      "retention": "Keep logs for 30 days in development, 90 days in production for debugging and compliance"
+    },
+    "tracing": {
+      "strategy": "Distributed tracing with OpenTelemetry for understanding request flows across services",
+      "implementation": "Install @opentelemetry/api, @opentelemetry/sdk-node, @opentelemetry/auto-instrumentations-node. Auto-instrument HTTP, database, and external service calls. Export traces to Jaeger (self-hosted) or Honeycomb (SaaS). Visualize slow requests and bottlenecks.",
+      "useCases": "Identify slow database queries, debug webhook processing, track external API latency"
+    },
+    "metrics": {
+      "strategy": "Application metrics for capacity planning and alerting",
+      "implementation": "Track: request rate, error rate, response time (p50, p95, p99), database query duration, cache hit rate, video upload success rate, payment conversion rate. Use Prometheus + Grafana or Vercel Analytics. Set up alerts: error rate > 5%, response time p95 > 2s, cache hit rate < 50%.",
+      "dashboards": "Create dashboards: API health, user engagement, business metrics (revenue, signups, retention)"
+    }
+  },
+  "migrationStrategy": {
+    "databaseMigrations": {
+      "approach": "Use Prisma Migrate for schema changes with careful rollout",
+      "steps": [
+        "Create migration: npx prisma migrate dev --name add_email_verification",
+        "Review generated SQL in prisma/migrations/ before applying",
+        "Test migration on staging database with production data snapshot",
+        "Create rollback script for each migration (important for data changes)",
+        "Apply to production during low-traffic window with database backup",
+        "Monitor for errors and performance impact post-migration",
+        "Keep backward compatibility during migration (e.g., make new columns optional initially)"
+      ],
+      "safeguards": "Always backup database before migration. Use transactions for data migrations. Add new columns as optional, populate them, then make required. Never drop columns without deprecation period."
+    },
+    "apiMigration": {
+      "approach": "Gradual migration to v1 APIs with dual support period",
+      "steps": [
+        "Create v1 endpoints with new schema and validation",
+        "Update internal frontend to use v1 endpoints",
+        "Test thoroughly before deprecating unversioned endpoints",
+        "Add deprecation warnings to unversioned endpoints (Deprecation header)",
+        "Monitor usage of old endpoints via logging",
+        "Remove old endpoints after 6 months or when usage drops to <1%"
+      ]
+    },
+    "dataBackfill": {
+      "approach": "Safe backfill scripts for populating new fields in existing records",
+      "steps": [
+        "Write backfill script as Prisma transaction",
+        "Test on subset of data (100 records) first",
+        "Run backfill in batches (1000 records at a time) to avoid long transactions",
+        "Add progress logging and error handling",
+        "Make script idempotent (safe to run multiple times)",
+        "Example: Backfill User.emailVerified for existing users set to true"
+      ]
+    }
+  }
+}
