@@ -10,7 +10,6 @@ import AgentActivityPanel from '@/components/AgentActivityPanel';
 import OutputPreview from '@/components/OutputPreview';
 import LogStream from '@/components/LogStream';
 import CheckpointModal from '@/components/CheckpointModal';
-import BuildTracking from '@/components/BuildTracking';
 import BuildSelector from '@/components/BuildSelector';
 import WorkflowTree from '@/components/WorkflowTree';
 import { ProjectState, AgentActivity, LogEntry, Checkpoint } from '@/types';
@@ -18,7 +17,7 @@ import { ProjectState, AgentActivity, LogEntry, Checkpoint } from '@/types';
 type TabType = 'overview' | 'tracking';
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [activeTab, setActiveTab] = useState<TabType>('tracking');
   const [projectState, setProjectState] = useState<ProjectState | null>(null);
   const [agents, setAgents] = useState<AgentActivity[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -41,6 +40,25 @@ export default function Home() {
       setWorkflowType('build');
     }
   }, [agents]);
+
+  // Load current build on mount
+  useEffect(() => {
+    const loadCurrentBuild = async () => {
+      try {
+        const response = await fetch('/api/builds/current');
+        const data = await response.json();
+
+        if (data.build) {
+          setAgents(data.build.agents || []);
+          setLogs(data.build.logs || []);
+        }
+      } catch (error) {
+        console.error('Failed to load current build:', error);
+      }
+    };
+
+    loadCurrentBuild();
+  }, []);
 
   useEffect(() => {
     // Connect to WebSocket server
@@ -106,12 +124,6 @@ export default function Home() {
     }
   };
 
-  // Auto-switch to tracking tab when agents are active
-  useEffect(() => {
-    if (agents.length > 0 && agents.some(a => a.status === 'running')) {
-      setActiveTab('tracking');
-    }
-  }, [agents]);
 
   // Load historical build when selected
   useEffect(() => {
@@ -216,9 +228,6 @@ export default function Home() {
             <div className="space-y-6">
               {/* Workflow Tree */}
               <WorkflowTree agents={agents} workflow={workflowType} />
-
-              {/* Build Tracking */}
-              <BuildTracking agents={agents} logs={logs} />
             </div>
           )}
         </div>

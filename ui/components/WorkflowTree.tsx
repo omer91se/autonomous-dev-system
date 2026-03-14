@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import {
   Bot, CheckCircle2, Clock, Loader2, FileText, Database,
-  Palette, Code, TestTube, Rocket, TrendingUp, X, AlertCircle, ArrowDown
+  Palette, Code, TestTube, Rocket, TrendingUp, X, AlertCircle, ArrowDown, RotateCcw
 } from 'lucide-react';
 import { AgentActivity } from '@/types';
 import { useEffect, useState } from 'react';
@@ -68,7 +68,7 @@ const getAgent = (node: TreeNode, agents: AgentActivity[]) => {
   return agents.find(a => a.type === node.type || a.name.toLowerCase().includes(node.name.toLowerCase()));
 };
 
-function AgentCard({ node, agents, index }: { node: TreeNode; agents: AgentActivity[]; index: number }) {
+function AgentCard({ node, agents, index, onPositionChange, position }: { node: TreeNode; agents: AgentActivity[]; index: number; onPositionChange: (nodeId: string, x: number, y: number, save?: boolean) => void; position: { x: number; y: number } }) {
   const status = getStatus(node, agents);
   const agent = getAgent(node, agents);
   const Icon = getAgentIcon(node.type);
@@ -85,10 +85,33 @@ function AgentCard({ node, agents, index }: { node: TreeNode; agents: AgentActiv
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.1 }}
-      className="relative"
+      drag
+      dragMomentum={false}
+      dragElastic={0}
+      onDrag={(event, info) => {
+        // Update position during drag for real-time arrow updates (no save)
+        const newX = position.x + info.offset.x;
+        const newY = position.y + info.offset.y;
+        onPositionChange(node.id, newX, newY, false);
+      }}
+      onDragEnd={(event, info) => {
+        // Final position save to localStorage
+        const newX = position.x + info.offset.x;
+        const newY = position.y + info.offset.y;
+        onPositionChange(node.id, newX, newY, true);
+      }}
+      whileDrag={{ scale: 1.05, zIndex: 50, cursor: 'grabbing' }}
+      initial={{ opacity: 0 }}
+      animate={{
+        opacity: 1,
+        left: position.x + 450,
+        top: position.y + 50,
+      }}
+      transition={{ delay: index * 0.1, duration: 0.3 }}
+      className="absolute cursor-grab"
+      style={{
+        transform: 'translate(-50%, -50%)',
+      }}
     >
       {/* Status Badge */}
       <div className="absolute -top-2 -right-2 z-10">
@@ -151,7 +174,7 @@ export default function WorkflowTree({ agents, workflow = 'build' }: WorkflowTre
   const nodes = WORKFLOWS[workflow];
   const [positions, setPositions] = useState<Map<string, { x: number; y: number }>>(new Map());
 
-  useEffect(() => {
+  const calculateDefaultPositions = () => {
     const nodeMap = new Map(nodes.map(n => [n.id, n]));
     const levels: string[][] = [];
     const visited = new Set<string>();
@@ -181,8 +204,59 @@ export default function WorkflowTree({ agents, workflow = 'build' }: WorkflowTre
       });
     });
 
-    setPositions(newPositions);
+    return newPositions;
+  };
+
+  useEffect(() => {
+    // Try to load saved positions from localStorage
+    const savedKey = `workflow-positions-${workflow}`;
+    const saved = localStorage.getItem(savedKey);
+
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        const loadedPositions = new Map<string, { x: number; y: number }>();
+        Object.entries(parsed).forEach(([key, value]: [string, any]) => {
+          loadedPositions.set(key, value);
+        });
+        setPositions(loadedPositions);
+      } catch (e) {
+        // If parsing fails, use default positions
+        setPositions(calculateDefaultPositions());
+      }
+    } else {
+      // No saved positions, use default
+      setPositions(calculateDefaultPositions());
+    }
   }, [nodes]);
+
+  const handlePositionChange = (nodeId: string, x: number, y: number, save: boolean = false) => {
+    setPositions(prev => {
+      const updated = new Map(prev);
+      updated.set(nodeId, { x, y });
+
+      // Only save to localStorage on final drag end
+      if (save) {
+        const savedKey = `workflow-positions-${workflow}`;
+        const toSave: Record<string, { x: number; y: number }> = {};
+        updated.forEach((value, key) => {
+          toSave[key] = value;
+        });
+        localStorage.setItem(savedKey, JSON.stringify(toSave));
+      }
+
+      return updated;
+    });
+  };
+
+  const resetPositions = () => {
+    const defaultPositions = calculateDefaultPositions();
+    setPositions(defaultPositions);
+
+    // Clear from localStorage
+    const savedKey = `workflow-positions-${workflow}`;
+    localStorage.removeItem(savedKey);
+  };
 
   return (
     <div className="wood-card p-6 shadow-xl">
@@ -196,6 +270,14 @@ export default function WorkflowTree({ agents, workflow = 'build' }: WorkflowTre
             <h2 className="text-xl font-bold text-amber-900">Workflow Pipeline</h2>
             <p className="text-xs text-amber-700 font-semibold capitalize">{workflow}</p>
           </div>
+          <button
+            onClick={resetPositions}
+            className="ml-2 px-3 py-1.5 text-xs font-semibold bg-amber-100 hover:bg-amber-200 border border-amber-300 rounded-lg transition-colors flex items-center gap-1.5"
+            title="Reset to default layout"
+          >
+            <RotateCcw className="w-3 h-3" />
+            Reset Layout
+          </button>
         </div>
 
         <div className="flex items-center gap-2 text-xs">
@@ -233,17 +315,15 @@ export default function WorkflowTree({ agents, workflow = 'build' }: WorkflowTre
                 const color = childStatus === 'completed' ? '#10b981' :
                              childStatus === 'running' ? '#3b82f6' : '#9ca3af';
 
+                // Connect from bottom center of parent to top center of child
                 const x1 = fromPos.x + 450;
-                const y1 = fromPos.y + 70;
+                const y1 = fromPos.y + 50 + 80; // 50 (base offset) + 80 (half card height + padding)
                 const x2 = toPos.x + 450;
-                const y2 = toPos.y + 20;
+                const y2 = toPos.y + 50 - 80; // 50 (base offset) - 80 (half card height + padding)
 
                 return (
                   <g key={`${node.id}-${childId}`}>
-                    <motion.line
-                      initial={{ pathLength: 0 }}
-                      animate={{ pathLength: 1 }}
-                      transition={{ duration: 0.5 }}
+                    <line
                       x1={x1}
                       y1={y1}
                       x2={x2}
@@ -252,10 +332,7 @@ export default function WorkflowTree({ agents, workflow = 'build' }: WorkflowTre
                       strokeWidth="3"
                       strokeDasharray={childStatus === 'running' ? '5,5' : '0'}
                     />
-                    <motion.circle
-                      initial={{ r: 0 }}
-                      animate={{ r: 4 }}
-                      transition={{ delay: 0.5 }}
+                    <circle
                       cx={x2}
                       cy={y2}
                       r="4"
@@ -273,17 +350,14 @@ export default function WorkflowTree({ agents, workflow = 'build' }: WorkflowTre
             if (!pos) return null;
 
             return (
-              <div
+              <AgentCard
                 key={node.id}
-                className="absolute"
-                style={{
-                  left: `${pos.x + 450}px`,
-                  top: `${pos.y + 50}px`,
-                  transform: 'translate(-50%, -50%)',
-                }}
-              >
-                <AgentCard node={node} agents={agents} index={index} />
-              </div>
+                node={node}
+                agents={agents}
+                index={index}
+                onPositionChange={handlePositionChange}
+                position={pos}
+              />
             );
           })}
         </div>
