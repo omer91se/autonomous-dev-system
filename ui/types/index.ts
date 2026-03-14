@@ -55,3 +55,29 @@ export interface WebSocketMessage {
   type: 'state_update' | 'agent_update' | 'log' | 'file_created' | 'checkpoint';
   data: any;
 }
+
+// App Management Types
+export type AppStatus = 'active' | 'deleted';
+
+export interface App {
+  id: string;
+  name: string;
+  displayName: string;
+  path: string;
+  port: number;
+  database: string;
+  s3Bucket: string;
+  s3Region: string;
+  status: AppStatus;
+  createdAt: string;
+  archivedAt?: string;
+  deletedAt?: string | null;
+  lastStartedAt?: string | null;
+  running?: boolean;
+  runtimeInfo?: {
+    pid: number;
+    port: number;
+    startedAt: string;
+    uptime: number;
+  } | null;
+}

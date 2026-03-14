@@ -45,9 +45,12 @@ generated-projects/
 test-projects/
 output/
 !output/README.md
+projects/
 
 # State and cache
 .cache/
 state/*.json
 !state/.gitkeep
 .env.shared
+running-apps.json
+build-history/

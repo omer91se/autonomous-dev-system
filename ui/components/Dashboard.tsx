@@ -26,50 +26,55 @@ export default function Dashboard({ onProjectStart }: DashboardProps) {
   ];
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-5xl mx-auto">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-center mb-12"
+        className="text-center mb-16"
       >
-        <div className="inline-flex items-center gap-2 bg-blue-500/10 text-blue-400 px-4 py-2 rounded-full mb-6">
-          <Sparkles className="w-4 h-4" />
-          <span className="text-sm font-medium">Powered by Claude Code Agents</span>
-        </div>
-        <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 text-transparent bg-clip-text">
-          Build Anything, Autonomously
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.2 }}
+          className="inline-flex items-center gap-2 badge-nature mb-8"
+        >
+          <Sparkles className="w-4 h-4 text-amber-600" />
+          <span className="text-sm">Powered by Claude Code Agents</span>
+        </motion.div>
+        <h1 className="text-7xl font-bold mb-6 bg-gradient-to-r from-green-600 via-emerald-500 to-green-600 text-transparent bg-clip-text gradient-animate">
+          Grow Your Dream App
         </h1>
-        <p className="text-xl text-gray-400">
-          Describe your app idea and watch AI agents build it from scratch
+        <p className="text-xl text-amber-800 max-w-2xl mx-auto leading-relaxed font-medium">
+          Plant an idea and watch AI agents cultivate it into a thriving application
         </p>
       </motion.div>
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-2xl p-8 mb-8"
+        transition={{ delay: 0.3 }}
+        className="wood-card p-10 mb-12"
       >
-        <form onSubmit={handleSubmit}>
-          <label htmlFor="idea" className="block text-sm font-medium text-gray-300 mb-3">
-            What would you like to build?
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <label htmlFor="idea" className="block text-base font-bold text-amber-900 mb-3">
+            🌾 What would you like to grow?
           </label>
-          <div className="flex gap-3">
+          <div className="flex gap-4">
             <input
               id="idea"
               type="text"
               value={idea}
               onChange={(e) => setIdea(e.target.value)}
-              placeholder="Describe your app idea..."
-              className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="A real-time chat app with video calls and file sharing..."
+              className="flex-1 bg-white/80 border-2 border-amber-200 rounded-xl px-6 py-4 text-amber-900 placeholder-amber-400 focus:outline-none focus:border-green-400 focus:ring-4 focus:ring-green-100 transition-all text-lg font-medium shadow-inner"
             />
             <button
               type="submit"
               disabled={!idea.trim()}
-              className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 hover:from-blue-600 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="nature-button flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
             >
-              Start Building
-              <ArrowRight className="w-4 h-4" />
+              <span>Start Growing</span>
+              <ArrowRight className="w-5 h-5" />
             </button>
           </div>
         </form>
@@ -78,18 +83,26 @@ export default function Dashboard({ onProjectStart }: DashboardProps) {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.2 }}
+        transition={{ delay: 0.4 }}
+        className="mb-16"
       >
-        <h3 className="text-sm font-medium text-gray-400 mb-3">Example Ideas</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <h3 className="text-sm font-bold text-amber-700 mb-5 uppercase tracking-wide">✨ Popular Seeds to Plant</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {examples.map((example, index) => (
-            <button
+            <motion.button
               key={index}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 + index * 0.05 }}
+              whileHover={{ scale: 1.02, y: -2 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => setIdea(example)}
-              className="text-left bg-gray-800/30 border border-gray-700 rounded-lg px-4 py-3 text-gray-300 hover:bg-gray-800/50 hover:border-gray-600 transition-all"
+              className="text-left wood-card-hover p-5 group"
             >
-              {example}
-            </button>
+              <p className="text-base text-amber-900 group-hover:text-green-800 transition-colors font-medium">
+                🌿 {example}
+              </p>
+            </motion.button>
           ))}
         </div>
       </motion.div>
@@ -97,21 +110,32 @@ export default function Dashboard({ onProjectStart }: DashboardProps) {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.3 }}
-        className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6"
+        transition={{ delay: 0.6 }}
+        className="grid grid-cols-1 md:grid-cols-3 gap-6"
       >
         {[
-          { title: 'Requirements', desc: 'AI analyzes and generates specs', color: 'blue' },
-          { title: 'Development', desc: 'Full-stack code generation', color: 'purple' },
-          { title: 'Deployment', desc: 'Production-ready in minutes', color: 'pink' },
+          { title: 'Planning', desc: 'AI analyzes and generates detailed specs', icon: '📋', color: 'blue' },
+          { title: 'Development', desc: 'Autonomous agents write production code', icon: '⚡', color: 'green' },
+          { title: 'Harvest', desc: 'Production-ready app in minutes', icon: '🌻', color: 'purple' },
         ].map((feature, index) => (
-          <div key={index} className="text-center">
-            <div className={`w-12 h-12 bg-${feature.color}-500/10 rounded-lg flex items-center justify-center mx-auto mb-3`}>
-              <div className={`w-6 h-6 bg-${feature.color}-500 rounded`} />
-            </div>
-            <h4 className="font-semibold text-white mb-1">{feature.title}</h4>
-            <p className="text-sm text-gray-400">{feature.desc}</p>
-          </div>
+          <motion.div
+            key={index}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 + index * 0.1 }}
+            whileHover={{ scale: 1.05, y: -4 }}
+            className={`status-card-${feature.color} p-8 text-center cursor-default`}
+          >
+            <motion.div
+              className="text-5xl mb-4"
+              animate={{ rotate: [0, 5, -5, 0] }}
+              transition={{ duration: 3, repeat: Infinity, delay: index * 0.3 }}
+            >
+              {feature.icon}
+            </motion.div>
+            <h4 className="font-bold text-amber-900 mb-3 text-lg">{feature.title}</h4>
+            <p className="text-sm text-amber-700 leading-relaxed">{feature.desc}</p>
+          </motion.div>
         ))}
       </motion.div>
     </div>

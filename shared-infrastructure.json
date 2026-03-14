@@ -2,7 +2,6 @@
   "description": "Shared infrastructure configuration for all generated projects",
   "version": "1.0.0",
   "lastUpdated": "2026-03-14",
-
   "database": {
     "provider": "postgresql",
     "host": "localhost",
@@ -26,7 +25,6 @@
       }
     }
   },
-
   "storage": {
     "provider": "aws-s3",
     "region": "us-east-1",
@@ -50,7 +48,6 @@
       }
     }
   },
-
   "authentication": {
     "provider": "nextauth",
     "secretGeneration": "openssl rand -base64 32",
@@ -73,7 +70,6 @@
       }
     }
   },
-
   "payments": {
     "provider": "stripe",
     "testMode": {
@@ -92,7 +88,6 @@
       "Create separate products/prices per project in Stripe dashboard"
     ]
   },
-
   "email": {
     "provider": "sendgrid",
     "apiKey": "YOUR_SENDGRID_API_KEY",
@@ -124,18 +119,23 @@
       }
     }
   },
-
   "projects": [
     {
+      "id": "proj-1773492895999-9vi6br",
       "name": "formfit-coach",
+      "displayName": "FormFit Coach",
+      "path": "projects/formfit-coach",
+      "port": 3100,
       "database": "formfit_coach",
       "s3Bucket": "formfit-coach-uploads",
       "s3Region": "us-east-1",
+      "status": "active",
       "createdAt": "2026-03-14",
-      "status": "active"
+      "archivedAt": "2026-03-14T12:54:56.000Z",
+      "deletedAt": null,
+      "lastStartedAt": null
     }
   ],
-
   "setupInstructions": {
     "firstTime": [
       "1. Set up PostgreSQL (local or cloud)",
@@ -152,5 +152,6 @@
       "3. Generate .env file with shared credentials",
       "4. Register project in this config file"
     ]
-  }
+  },
+  "nextPort": 3101
 }

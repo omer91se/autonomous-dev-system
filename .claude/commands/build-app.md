@@ -4,19 +4,35 @@ description: Autonomously build a complete web application from an idea
 
 You are the Autonomous App Builder. Your job is to take the user's app idea and autonomously build a complete, production-ready application using the autonomous dev system.
 
-## 🎨 UI Integration
+## 🎨 UI Dashboard Integration
 
-**IMPORTANT**: Before starting, check if the UI dashboard is running:
+**IMPORTANT:** For EVERY agent you spawn, follow this pattern:
 
-1. **If UI is running** (check http://localhost:3000):
-   - Use the UI-integrated orchestrator: `tsx orchestrate-ui.ts "{{input}}"`
-   - The user will see real-time updates in the dashboard
-   - Checkpoints will appear as beautiful modals
-   - Tell the user to open http://localhost:3000 to watch progress
+### Before Spawning Agent
+```bash
+AGENT_ID=$(npx tsx scripts/notify-ui.ts start "Agent Name" "agent-type" "Task description")
+```
 
-2. **If UI is NOT running**:
-   - Use the standard autonomous flow below
-   - Suggest: "Want to see this visually? Run `cd ui && npm run dev` then restart!"
+### Spawn Agent
+Use Task tool to spawn the agent normally
+
+### After Agent Completes
+```bash
+npx tsx scripts/notify-ui.ts complete "$AGENT_ID" "Agent Name" "agent-type" "Success message"
+```
+
+### If Agent Fails
+```bash
+npx tsx scripts/notify-ui.ts error "$AGENT_ID" "Agent Name" "agent-type" "Error message"
+```
+
+**Before you begin, suggest to user:**
+
+💡 **Tip:** Start the UI dashboard to see real-time agent activity:
+```bash
+cd ui && npm run dev
+```
+Then open http://localhost:3000
 
 ## User's App Idea
 
@@ -24,26 +40,42 @@ The user wants to build: {{input}}
 
 ## Your Mission
 
-Autonomously execute the complete development workflow:
+Autonomously execute the complete 7-agent development workflow:
 
-1. **Run Requirements Phase**
-   - Spawn requirements agent using Task tool
-   - Analyze the app idea: {{input}}
-   - If the idea needs clarification, ask questions
-   - Generate comprehensive requirements
-   - Save to `~/projects/autonomous-dev-system/output/requirements.json`
-   - Present checkpoint for user approval
+1. **Business Strategy Phase** (CEO Agent)
+   - Analyze business viability, market, competition
+   - Create `output/business-plan.json`
+   - **CHECKPOINT 1**: Business Plan Approval
 
-2. **Run Development Phase** (after requirements approval)
-   - Spawn coding agent using Task tool
-   - Generate complete application based on requirements
-   - Save to `~/projects/autonomous-dev-system/output/generated-project/`
-   - Create implementation summary in `output/implementation.json`
-   - Present checkpoint for user approval
+2. **Product Specification Phase** (PM Agent)
+   - Deep UX research, user personas, detailed specs
+   - Create `output/product-spec.json`
+   - **CHECKPOINT 2**: Product Spec Approval
 
-3. **Provide Next Steps**
-   - Show the user where their app is
-   - Provide setup and run instructions
+3. **Technical Design Phase** (Designer + Architect in PARALLEL)
+   - Designer: Create design system and mockups
+   - Architect: Design system architecture and APIs
+   - Create `output/design-system.json`, `output/mockups/`, `output/architecture.json`, `output/api-contracts.yaml`
+   - **CHECKPOINT 3**: Design & Architecture Review
+
+4. **Backend Development Phase** (Backend Developer)
+   - Implement APIs, database, authentication, integrations
+   - Create backend code in `output/generated-project/`
+
+5. **Frontend Development Phase** (Frontend Developer)
+   - Implement UI components and pages
+   - Integrate with backend APIs
+   - Create frontend code in `output/generated-project/`
+   - **CHECKPOINT 4**: Implementation Review
+
+6. **Quality Assurance Phase** (QA Agent)
+   - Generate comprehensive test suite
+   - Run tests and create QA report
+   - Create `output/test-plan.json`, tests, `output/qa-report.md`
+   - **CHECKPOINT 5**: QA Approval
+
+7. **Completion**
+   - Show setup instructions and next steps
 
 ## How to Execute
 
@@ -73,29 +105,104 @@ done
 - Consider suggesting to user: "💡 Tip: Run `cd ui && npm run dev` in another terminal for a visual dashboard!"
 - If port 3000 is taken, suggest: "💡 UI port 3000 taken? Use: `NEXT_PUBLIC_UI_PORT=3002 NEXT_PUBLIC_WS_PORT=3003 npm run dev`"
 
-### Phase 1: Requirements (Only if UI not running)
+### Phase 1: Business Strategy (CEO Agent)
 
-Use the Task tool to spawn a requirements agent:
-- Read the prompt template: `~/projects/autonomous-dev-system/agents/requirements-agent-prompt.md`
-- Replace `{{USER_INPUT}}` with: {{input}}
-- The agent will create `output/requirements.json` or `output/questions.json`
-- If questions.json exists, ask the user those questions, then re-run with clarifications
-- When requirements.json exists, present it to the user for approval
+**UI Integration Pattern** (do this for EVERY agent):
 
-**Checkpoint**: Display requirements and ask: "Approve these requirements? (yes/no)"
+1. **Before spawning** - Register agent with UI:
+```bash
+AGENT_ID=$(npx tsx scripts/notify-ui.ts start "CEO Agent" "ceo" "Analyzing business viability and market opportunity")
+```
 
-### Phase 2: Development (only if Phase 1 approved)
+2. **Spawn agent** using Task tool:
+   - Read: `agents/ceo-agent-prompt.md`
+   - Replace `{{USER_INPUT}}` with: {{input}}
+   - Agent creates `output/business-plan.json`
 
-Use the Task tool to spawn a coding agent:
-- Read the prompt template: `~/projects/autonomous-dev-system/agents/coding-agent-prompt.md`
-- Replace `{{PROJECT_CONTEXT}}` with the project name from requirements
-- Replace `{{TECH_STACK}}` with the tech stack from requirements
-- The agent will create the complete app in `output/generated-project/`
-- The agent will create `output/implementation.json` with summary
+3. **After agent completes** - Notify UI:
+```bash
+npx tsx scripts/notify-ui.ts complete "$AGENT_ID" "CEO Agent" "ceo" "Business plan created successfully"
+```
 
-**Checkpoint**: Display implementation summary and ask: "Approve this implementation? (yes/no)"
+4. **If agent fails** - Notify UI:
+```bash
+npx tsx scripts/notify-ui.ts error "$AGENT_ID" "CEO Agent" "ceo" "Error message"
+```
 
-### Phase 3: Completion
+**Present business plan with key insights**
+
+**CHECKPOINT 1**: Display business plan summary and ask: "Approve business plan? (yes/no)"
+- Show: Business model, market size, competitive advantage, budget, risks, recommendation
+
+### Phase 2: Product Specification (PM Agent)
+
+**Step 1: Register agent with UI**
+```bash
+AGENT_ID=$(npx tsx scripts/notify-ui.ts start "PM Agent" "pm" "Creating detailed product specification with UX research" | jq -r .agentId)
+```
+
+**Step 2: Spawn PM Agent using Task tool**
+- Read: `agents/pm-agent-prompt.md`
+- Agent reads `output/business-plan.json`
+- Agent creates `output/product-spec.json`
+
+**Step 3: Mark agent as complete**
+```bash
+npx tsx scripts/notify-ui.ts complete "$AGENT_ID" "PM Agent" "pm" "Product specification created successfully"
+```
+
+**Step 4: Present product spec**
+- Present product spec with user personas, pages, flows
+
+**CHECKPOINT 2**: Display product spec summary and ask: "Approve product specification? (yes/no)"
+- Show: User personas, key pages, feature priorities, release roadmap
+
+### Phase 3: Technical Design (Designer + Architect IN PARALLEL)
+
+**Spawn TWO agents in parallel**:
+
+**Designer Agent** (parallel task 1):
+- Read: `~/projects/autonomous-dev-system/agents/designer-agent-prompt.md`
+- Agent reads `output/product-spec.json`
+- Agent creates `output/design-system.json` and `output/mockups/`
+
+**Architect Agent** (parallel task 2):
+- Read: `~/projects/autonomous-dev-system/agents/architect-agent-prompt.md`
+- Agent reads `output/product-spec.json`
+- Agent creates `output/architecture.json` and `output/api-contracts.yaml`
+
+**CHECKPOINT 3**: Display design & architecture summary and ask: "Approve technical design? (yes/no)"
+- Show: Design system highlights, component examples, architecture overview, API endpoints
+
+### Phase 4: Backend Development (Backend Developer)
+
+Spawn Backend Developer Agent using Task tool:
+- Read: `~/projects/autonomous-dev-system/agents/backend-developer-prompt.md`
+- Agent reads `output/architecture.json`, `output/api-contracts.yaml`, `output/product-spec.json`
+- Agent implements backend in `output/generated-project/app/api/`, `lib/`, `prisma/`
+
+### Phase 5: Frontend Development (Frontend Developer)
+
+Spawn Frontend Developer Agent using Task tool:
+- Read: `~/projects/autonomous-dev-system/agents/frontend-developer-prompt.md`
+- Agent reads `output/design-system.json`, `output/mockups/`, `output/api-contracts.yaml`
+- Agent implements frontend in `output/generated-project/components/`, `app/`, `styles/`
+
+**CHECKPOINT 4**: Display implementation summary and ask: "Approve implementation? (yes/no)"
+- Show: Files created, features implemented, API endpoints, pages built
+
+### Phase 6: Quality Assurance (QA Agent)
+
+Spawn QA Agent using Task tool:
+- Read: `~/projects/autonomous-dev-system/agents/qa-agent-prompt.md`
+- Agent reads `output/product-spec.json` and `output/generated-project/`
+- Agent creates `output/test-plan.json`, test files, `output/test-results.json`, `output/qa-report.md`
+- Agent runs tests and reports results
+
+**CHECKPOINT 5**: Display QA report and ask: "Approve quality assurance? (yes/no)"
+- Show: Test coverage, passing/failing tests, performance metrics, security findings
+
+### Phase 7: Completion
 
 Display success message with:
 - Location of generated app
@@ -123,61 +230,94 @@ Use clear visual indicators:
 
 ```
 ╔════════════════════════════════════════════════════════════════════════════╗
-║                        AUTONOMOUS APP BUILDER                              ║
+║                   AUTONOMOUS APP BUILDER v2.0                              ║
+║                    7-Agent Professional Workflow                           ║
 ╚════════════════════════════════════════════════════════════════════════════╝
 
 📋 App Idea: {{input}}
 
 ═══════════════════════════════════════════════════════════════════════════
-⏳ PHASE 1: REQUIREMENTS ANALYSIS
+⏳ PHASE 1: BUSINESS STRATEGY (CEO Agent)
 ═══════════════════════════════════════════════════════════════════════════
+[Analyzing market, competition, business model...]
+✅ Business Plan Created!
 
-[Spawn requirements agent...]
-[Agent creates requirements.json...]
-
-✅ Requirements Generated!
-
-════════════════════════════════════════════════════════════════════════════
-🔔 CHECKPOINT: Requirements Review
-════════════════════════════════════════════════════════════════════════════
-
-[Show requirements preview]
-
-Your choice: [Approve/Reject]
-
-[If approved...]
+🔔 CHECKPOINT 1: Business Plan Approval
+[Show: Business model, TAM/SAM/SOM, competitive advantage, budget, risks]
+Your choice: [yes/no]
 
 ═══════════════════════════════════════════════════════════════════════════
-⏳ PHASE 2: DEVELOPMENT
+⏳ PHASE 2: PRODUCT SPECIFICATION (PM Agent)
 ═══════════════════════════════════════════════════════════════════════════
+[Researching UX best practices, creating user personas, mapping flows...]
+✅ Product Specification Created!
 
-[Spawn coding agent...]
-[Agent creates complete application...]
+🔔 CHECKPOINT 2: Product Spec Approval
+[Show: User personas, key pages, user flows, feature priorities]
+Your choice: [yes/no]
 
-✅ Application Generated!
+═══════════════════════════════════════════════════════════════════════════
+⏳ PHASE 3: TECHNICAL DESIGN (Designer + Architect in PARALLEL)
+═══════════════════════════════════════════════════════════════════════════
+🎨 Designer Agent: Creating design system and mockups...
+🏗️  Architect Agent: Designing system architecture and APIs...
+✅ Design System & Architecture Ready!
 
-════════════════════════════════════════════════════════════════════════════
-🔔 CHECKPOINT: Implementation Review
-════════════════════════════════════════════════════════════════════════════
+🔔 CHECKPOINT 3: Design & Architecture Review
+[Show: Design system preview, architecture diagram, API contracts]
+Your choice: [yes/no]
 
-[Show implementation summary]
+═══════════════════════════════════════════════════════════════════════════
+⏳ PHASE 4: BACKEND DEVELOPMENT (Backend Developer Agent)
+═══════════════════════════════════════════════════════════════════════════
+[Implementing API routes, database, authentication, integrations...]
+✅ Backend Implementation Complete!
 
-Your choice: [Approve/Reject]
+═══════════════════════════════════════════════════════════════════════════
+⏳ PHASE 5: FRONTEND DEVELOPMENT (Frontend Developer Agent)
+═══════════════════════════════════════════════════════════════════════════
+[Implementing components, pages, state management, API integration...]
+✅ Frontend Implementation Complete!
 
-[If approved...]
+🔔 CHECKPOINT 4: Implementation Review
+[Show: Files created, features implemented, pages built]
+Your choice: [yes/no]
+
+═══════════════════════════════════════════════════════════════════════════
+⏳ PHASE 6: QUALITY ASSURANCE (QA Agent)
+═══════════════════════════════════════════════════════════════════════════
+[Generating tests, running test suite, performance analysis, security scan...]
+✅ QA Testing Complete!
+
+🔔 CHECKPOINT 5: QA Approval
+[Show: Test results, coverage, performance metrics, security findings]
+Your choice: [yes/no]
 
 ╔════════════════════════════════════════════════════════════════════════════╗
-║                            🎉 BUILD COMPLETE!                              ║
+║                     🎉 PRODUCTION-READY APP COMPLETE! 🎉                   ║
 ╚════════════════════════════════════════════════════════════════════════════╝
 
-Your app is ready: ~/projects/autonomous-dev-system/output/generated-project/
+📦 Your enterprise-grade application is ready!
 
-Next steps:
-1. cd ~/projects/autonomous-dev-system/output/generated-project
-2. npm install
-3. cp .env.example .env && edit .env
-4. npm run dev
-5. Open http://localhost:3000
+📁 Location: ~/projects/autonomous-dev-system/output/generated-project/
+
+📊 Generated Artifacts:
+   ✓ Business Plan (business-plan.json)
+   ✓ Product Specification (product-spec.json)
+   ✓ Design System (design-system.json + mockups/)
+   ✓ Architecture Documentation (architecture.json + api-contracts.yaml)
+   ✓ Complete Application (generated-project/)
+   ✓ Test Suite (tests/ + test-results.json)
+   ✓ QA Report (qa-report.md)
+
+🚀 Next Steps:
+   1. cd ~/projects/autonomous-dev-system/output/generated-project
+   2. npm install
+   3. cp .env.example .env && edit .env
+   4. npm run dev
+   5. Open http://localhost:3000
+
+✅ All phases complete with professional-grade quality!
 ```
 
 ## Error Handling

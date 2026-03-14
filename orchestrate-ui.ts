@@ -12,6 +12,14 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { WebSocket } from 'ws';
+import { execSync } from 'child_process';
+import {
+  generateBuildId,
+  saveBuildSession,
+  updateBuildSession,
+  addAgentToSession,
+  addLogToSession
+} from './scripts/build-history.js';
 
 // Project state
 interface ProjectState {
@@ -41,6 +49,7 @@ const WS_PORT = process.env.NEXT_PUBLIC_WS_PORT || process.env.WS_PORT || '3001'
 const UI_PORT = process.env.NEXT_PUBLIC_UI_PORT || process.env.UI_PORT || '3000';
 
 let ws: WebSocket | null = null;
+let currentBuildId: string | null = null;
 
 function ensureOutputDir() {
   if (!existsSync(OUTPUT_DIR)) {
@@ -75,20 +84,34 @@ function connectWebSocket() {
 function sendLog(level: 'info' | 'success' | 'warning' | 'error', message: string, agent?: string) {
   console.log(`[${level.toUpperCase()}] ${agent ? `[${agent}] ` : ''}${message}`);
 
+  const logData = {
+    level,
+    message,
+    agent,
+    timestamp: new Date().toISOString(),
+  };
+
+  // Save to build history
+  if (currentBuildId) {
+    addLogToSession(currentBuildId, logData);
+  }
+
+  // Send via WebSocket
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({
       type: 'log',
-      data: {
-        level,
-        message,
-        agent,
-        timestamp: new Date().toISOString(),
-      },
+      data: logData,
     }));
   }
 }
 
 function sendAgentUpdate(agent: any) {
+  // Save to build history
+  if (currentBuildId) {
+    addAgentToSession(currentBuildId, agent);
+  }
+
+  // Send via WebSocket
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({
       type: 'agent_update',
@@ -193,7 +216,21 @@ async function main() {
 
   const state = loadOrCreateState(userInput);
 
+  // Create build session
+  currentBuildId = generateBuildId();
+  saveBuildSession(currentBuildId, {
+    buildId: currentBuildId,
+    projectId: state.projectId,
+    projectName: userInput,
+    phase: state.phase,
+    status: 'running',
+    startedAt: new Date().toISOString(),
+    agents: [],
+    logs: [],
+  });
+
   console.log(`\n📊 Project ID: ${state.projectId}`);
+  console.log(`🔖 Build ID: ${currentBuildId}`);
   console.log(`📍 Current Phase: ${state.phase}`);
   console.log(`💡 App Idea: ${state.userInput}\n`);
 
@@ -330,6 +367,23 @@ async function main() {
 
     sendLog('success', 'Implementation completed', 'Coding Agent');
 
+    // Archive the project
+    console.log('\n📦 Archiving project...\n');
+    sendLog('info', 'Archiving project to projects directory...', 'Orchestrator');
+
+    try {
+      const archiveScript = join(process.cwd(), 'scripts', 'archive-project.js');
+      const archiveOutput = execSync(`node "${archiveScript}"`, {
+        encoding: 'utf-8',
+        stdio: 'pipe'
+      });
+      console.log(archiveOutput);
+      sendLog('success', 'Project archived successfully!', 'Orchestrator');
+    } catch (error: any) {
+      console.error('⚠️  Warning: Failed to archive project:', error.message);
+      sendLog('warning', 'Failed to archive project, but build completed', 'Orchestrator');
+    }
+
     state.phase = 'complete';
     state.implementationPath = implementationPath;
     saveState(state);
@@ -340,8 +394,22 @@ async function main() {
     console.log('🎉 PROJECT COMPLETE!');
     console.log('═'.repeat(80) + '\n');
     console.log('Your application: ./output/generated-project/\n');
+    console.log('💡 Next Steps:');
+    console.log('   1. View all your apps: http://localhost:' + UI_PORT + '/apps');
+    console.log('   2. Start your app from the Apps page');
+    console.log('   3. Or manually: cd output/generated-project && npm install && npm run dev\n');
 
     sendLog('success', 'Project completed successfully!', 'Orchestrator');
+    sendLog('info', 'View in Apps dashboard: http://localhost:' + UI_PORT + '/apps', 'Orchestrator');
+
+    // Mark build as complete
+    if (currentBuildId) {
+      updateBuildSession(currentBuildId, {
+        status: 'completed',
+        phase: 'complete',
+        completedAt: new Date().toISOString(),
+      });
+    }
   }
 
   // Close WebSocket
@@ -353,5 +421,15 @@ async function main() {
 main().catch(error => {
   console.error('❌ Error:', error.message);
   sendLog('error', error.message, 'Orchestrator');
+
+  // Mark build as failed
+  if (currentBuildId) {
+    updateBuildSession(currentBuildId, {
+      status: 'failed',
+      completedAt: new Date().toISOString(),
+      error: error.message,
+    });
+  }
+
   process.exit(1);
 });

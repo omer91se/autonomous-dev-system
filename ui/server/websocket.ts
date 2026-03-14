@@ -91,16 +91,8 @@ wss.on('connection', (ws: WebSocket) => {
       const data = JSON.parse(message.toString());
       console.log(`📨 Message from ${clientId}:`, data);
 
-      // Handle different message types
-      if (data.type === 'log') {
-        broadcast({
-          type: 'log',
-          data: {
-            ...data.data,
-            timestamp: new Date().toISOString(),
-          },
-        });
-      }
+      // Broadcast all message types (agent_update, log, checkpoint, etc.)
+      broadcast(data);
     } catch (error) {
       console.error('Failed to process message:', error);
     }
