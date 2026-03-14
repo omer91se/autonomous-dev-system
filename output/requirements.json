@@ -1,0 +1,168 @@
+{
+  "projectName": "FormFit Coach",
+  "description": "A virtual coaching platform connecting fitness enthusiasts with certified trainers through video-based form analysis. Users submit workout videos and receive personalized feedback on technique, form corrections, and injury prevention guidance from experienced professionals.",
+  "userStories": [
+    {
+      "story": "As a fitness enthusiast, I can create an account and profile so that I can access personalized coaching services",
+      "acceptanceCriteria": [
+        "User can register with email/password or social OAuth (Google, Facebook)",
+        "User profile includes fitness level, goals, and areas of focus",
+        "Email verification is required before full access",
+        "Profile can be edited at any time"
+      ]
+    },
+    {
+      "story": "As a user, I can upload workout videos so that trainers can review my form and technique",
+      "acceptanceCriteria": [
+        "Support video formats: MP4, MOV, AVI up to 500MB per file",
+        "User can add title, description, and workout type tags",
+        "Video upload shows progress indicator",
+        "User can specify which aspects they want feedback on (form, technique, safety)",
+        "Videos are stored securely and privately"
+      ]
+    },
+    {
+      "story": "As a user, I can request feedback from certified trainers so that I receive expert guidance",
+      "acceptanceCriteria": [
+        "User can browse available trainers with profiles, specialties, and ratings",
+        "User can select specific trainer or get matched automatically",
+        "Request includes workout type, urgency level, and specific concerns",
+        "User receives notification when feedback is ready",
+        "Estimated turnaround time is displayed (24-48 hours standard)"
+      ]
+    },
+    {
+      "story": "As a certified trainer, I can review submitted videos and provide feedback so that I can help users improve",
+      "acceptanceCriteria": [
+        "Trainer dashboard shows pending review requests",
+        "Video player with playback controls, slow-motion, and frame-by-frame options",
+        "Trainer can add timestamped comments on specific moments",
+        "Trainer can upload annotated screenshots or demonstration videos",
+        "Feedback includes written analysis, corrections, and exercise recommendations"
+      ]
+    },
+    {
+      "story": "As a user, I can view trainer feedback on my videos so that I can improve my technique",
+      "acceptanceCriteria": [
+        "Feedback displays alongside original video with synchronized timestamps",
+        "User can see annotated screenshots and trainer notes",
+        "User can ask follow-up questions in comment thread",
+        "Feedback history is accessible in user profile",
+        "User can rate and review the feedback received"
+      ]
+    },
+    {
+      "story": "As a user, I can purchase coaching credits or subscriptions so that I can access feedback services",
+      "acceptanceCriteria": [
+        "Pay-per-review option (single credit purchase)",
+        "Monthly subscription tiers (5, 10, unlimited reviews)",
+        "Secure payment processing via Stripe",
+        "Credits are clearly displayed in user dashboard",
+        "Subscription auto-renewal with cancellation option"
+      ]
+    },
+    {
+      "story": "As a trainer, I can manage my availability and earnings so that I can control my workload",
+      "acceptanceCriteria": [
+        "Trainer can set active/inactive status",
+        "Trainer can specify workout specialties (weightlifting, yoga, cardio, etc.)",
+        "Dashboard shows earnings, completed reviews, and ratings",
+        "Trainer receives notifications for new review requests",
+        "Payout system integrated (monthly payments)"
+      ]
+    },
+    {
+      "story": "As an admin, I can verify trainer certifications so that platform quality is maintained",
+      "acceptanceCriteria": [
+        "Admin dashboard for reviewing trainer applications",
+        "Upload and verification of certification documents",
+        "Approval/rejection workflow with notifications",
+        "Ability to suspend or remove trainers",
+        "View platform analytics and user metrics"
+      ]
+    }
+  ],
+  "functionalRequirements": {
+    "authentication": "Multi-role authentication system supporting users, trainers, and admins. Email/password with email verification. OAuth integration (Google, Facebook). Role-based access control (RBAC). Password reset and account recovery.",
+    "coreFeatures": "Video upload and storage with cloud hosting. Video playback with advanced controls (slow-mo, frame-by-frame). Timestamped commenting system. Trainer-user matching algorithm based on specialties. Notification system (email and in-app). Rating and review system for trainers. Search and filter for trainers by specialty, rating, and availability.",
+    "dataManagement": "User profiles with fitness goals and history. Trainer profiles with certifications, specialties, and performance metrics. Video metadata and storage references. Feedback and review data with timestamps. Payment and transaction records. Secure file storage for certification documents. Database with relationships between users, trainers, videos, and feedback.",
+    "integrations": "Stripe for payment processing and subscriptions. AWS S3 or Cloudinary for video storage and streaming. SendGrid or similar for transactional emails. Video processing service for thumbnails and optimization. Optional: Twilio for SMS notifications. Analytics platform (Google Analytics or Mixpanel)"
+  },
+  "nonFunctionalRequirements": {
+    "performance": "API response time < 300ms for 95th percentile. Video upload with resumable uploads for reliability. Video streaming with adaptive bitrate. Page load time < 2 seconds. Database queries optimized with indexes. Lazy loading for video thumbnails and lists.",
+    "scalability": "Support 10,000 registered users at launch. Handle 100 concurrent video uploads. Support 500 concurrent users browsing platform. Horizontal scaling capability for backend services. CDN for video delivery to reduce server load. Database connection pooling and query optimization.",
+    "security": "All videos private by default, accessible only to user and assigned trainer. Encryption at rest for video files and sensitive data. HTTPS/TLS for all connections. Secure payment processing (PCI DSS compliance via Stripe). Input validation and sanitization to prevent XSS and SQL injection. CSRF protection on all forms. Rate limiting on uploads and API endpoints. Regular security audits and dependency updates.",
+    "availability": "99.5% uptime SLA. Automated backups daily with 30-day retention. Database replication for disaster recovery. Health checks and monitoring with alerting. Graceful error handling with user-friendly messages. Video upload retry mechanism for failed uploads."
+  },
+  "techConstraints": {
+    "stack": "nextjs-postgres",
+    "deployment": "Vercel for Next.js application hosting. Railway or Supabase for PostgreSQL database. AWS S3 or Cloudinary for video storage. Vercel Edge Functions for API routes. Environment-based configuration for dev/staging/production.",
+    "additionalTools": "Prisma ORM for database management. NextAuth.js for authentication. Stripe SDK for payments. React Query for state management. Tailwind CSS for styling. Zod for validation. Uploadthing or similar for file uploads. FFmpeg for video processing (thumbnails, compression)"
+  },
+  "successMetrics": [
+    "Users can complete video upload within 2 minutes for 200MB file",
+    "Trainers can provide feedback within 24-48 hours on average",
+    "User satisfaction rating > 4.0/5.0 for feedback quality",
+    "95% of videos successfully uploaded on first attempt",
+    "Platform processes 100+ video reviews per week at steady state",
+    "Conversion rate: 30% of registered users purchase at least one review",
+    "Trainer retention: 80% of trainers remain active after 3 months",
+    "Zero data breaches or security incidents",
+    "Payment processing success rate > 99%",
+    "Page load time < 2 seconds on 4G connection"
+  ],
+  "mvpScope": {
+    "phase1": [
+      "User and trainer registration with email authentication",
+      "Basic profile creation for both roles",
+      "Video upload functionality (up to 500MB)",
+      "Simple video playback",
+      "Text-based feedback system",
+      "Basic trainer selection",
+      "Single payment option (pay-per-review)",
+      "Email notifications for key events"
+    ],
+    "phase2": [
+      "Advanced video controls (slow-motion, frame-by-frame)",
+      "Timestamped comments",
+      "Trainer rating and review system",
+      "Subscription tiers",
+      "Trainer dashboard with analytics",
+      "Admin panel for trainer verification",
+      "Enhanced search and filtering"
+    ],
+    "futureEnhancements": [
+      "Mobile apps (iOS/Android)",
+      "Live video consultation scheduling",
+      "AI-powered form analysis assistance",
+      "Social features (share progress, community)",
+      "Workout program builder",
+      "Integration with fitness wearables",
+      "Multi-language support"
+    ]
+  },
+  "dataModel": {
+    "users": "id, email, password_hash, name, role (user/trainer/admin), fitness_level, goals, created_at, updated_at",
+    "trainers": "id, user_id, bio, specialties[], certifications[], rating, total_reviews, is_verified, is_active, hourly_rate",
+    "videos": "id, user_id, title, description, file_url, thumbnail_url, workout_type, duration, file_size, status (uploaded/processing/ready), created_at",
+    "feedback": "id, video_id, trainer_id, content, rating, created_at, updated_at",
+    "comments": "id, feedback_id, user_id, content, timestamp (video position), created_at",
+    "transactions": "id, user_id, amount, type (credit/subscription), status, stripe_payment_id, created_at",
+    "credits": "id, user_id, balance, transaction_id"
+  },
+  "uiuxRequirements": {
+    "design": "Clean, modern, and professional aesthetic. Mobile-responsive design (mobile-first approach). Accessible (WCAG 2.1 AA compliance). Consistent color scheme aligned with fitness/wellness theme. Clear call-to-action buttons. Intuitive navigation with clear user flows.",
+    "keyPages": [
+      "Landing page with value proposition and how-it-works",
+      "User/Trainer registration and login",
+      "User dashboard (video library, credits, feedback history)",
+      "Trainer dashboard (pending reviews, earnings, stats)",
+      "Video upload page with drag-and-drop",
+      "Trainer directory with search/filter",
+      "Feedback view page (video + synchronized comments)",
+      "Payment and subscription management",
+      "Admin panel (trainer verification, analytics)"
+    ],
+    "userFlow": "New user signs up -> Completes profile -> Uploads first video -> Selects trainer or auto-match -> Makes payment -> Receives notification when feedback ready -> Views feedback -> Optionally asks follow-up questions -> Rates feedback"
+  }
+}

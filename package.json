@@ -1,0 +1,29 @@
+{
+  "name": "autonomous-dev-system",
+  "version": "0.1.0",
+  "description": "Autonomous web/mobile app development system powered by Claude Code agents",
+  "type": "module",
+  "scripts": {
+    "orchestrate": "tsx orchestrate.ts",
+    "clean": "rm -rf output && mkdir output"
+  },
+  "keywords": [
+    "autonomous",
+    "ai-agents",
+    "langgraph",
+    "mcp",
+    "code-generation"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
