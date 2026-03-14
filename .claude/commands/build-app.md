@@ -49,20 +49,29 @@ Autonomously execute the complete development workflow:
 
 ### Step 0: Check for UI (Do this first!)
 
-Try to detect if the UI is running:
+Try to detect if the UI is running on common ports:
 ```bash
-curl -s http://localhost:3000 > /dev/null 2>&1 && echo "UI is running!" || echo "UI not running"
+# Check default ports (3000, 3001, 3002, etc.)
+for port in 3000 3001 3002 3003 3004 3005; do
+  if curl -s http://localhost:$port > /dev/null 2>&1; then
+    echo "UI is running on port $port!"
+    UI_PORT=$port
+    break
+  fi
+done
 ```
 
 **If UI is running:**
+- Set environment variable: `export NEXT_PUBLIC_UI_PORT=$UI_PORT`
 - Run: `tsx orchestrate-ui.ts "{{input}}"`
-- Tell user: "✨ Open http://localhost:3000 to watch your app being built in real-time!"
+- Tell user: "✨ Open http://localhost:$UI_PORT to watch your app being built in real-time!"
 - The orchestrator will handle everything and send updates to the UI
 - STOP here - don't continue with manual phases below
 
 **If UI is NOT running:**
 - Continue with manual phases below
 - Consider suggesting to user: "💡 Tip: Run `cd ui && npm run dev` in another terminal for a visual dashboard!"
+- If port 3000 is taken, suggest: "💡 UI port 3000 taken? Use: `NEXT_PUBLIC_UI_PORT=3002 NEXT_PUBLIC_WS_PORT=3003 npm run dev`"
 
 ### Phase 1: Requirements (Only if UI not running)
 

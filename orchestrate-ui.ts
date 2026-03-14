@@ -36,6 +36,10 @@ const OUTPUT_DIR = join(process.cwd(), 'output');
 const STATE_FILE = join(OUTPUT_DIR, 'project-state.json');
 const CHECKPOINT_DECISION_FILE = join(OUTPUT_DIR, 'checkpoint-decision.json');
 
+// Read ports from environment or use defaults
+const WS_PORT = process.env.NEXT_PUBLIC_WS_PORT || process.env.WS_PORT || '3001';
+const UI_PORT = process.env.NEXT_PUBLIC_UI_PORT || process.env.UI_PORT || '3000';
+
 let ws: WebSocket | null = null;
 
 function ensureOutputDir() {
@@ -46,7 +50,7 @@ function ensureOutputDir() {
 
 function connectWebSocket() {
   try {
-    ws = new WebSocket('ws://localhost:3001');
+    ws = new WebSocket(`ws://localhost:${WS_PORT}`);
 
     ws.on('open', () => {
       console.log('✅ Connected to UI');

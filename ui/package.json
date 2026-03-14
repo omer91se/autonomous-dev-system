@@ -4,11 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "concurrently \"npm run dev:next\" \"npm run dev:ws\"",
-    "dev:next": "next dev",
+    "dev:next": "next dev -p ${NEXT_PUBLIC_UI_PORT:-3000}",
     "dev:ws": "tsx server/websocket.ts",
     "build": "next build",
     "start": "concurrently \"npm run start:next\" \"npm run start:ws\"",
-    "start:next": "next start",
+    "start:next": "next start -p ${NEXT_PUBLIC_UI_PORT:-3000}",
     "start:ws": "tsx server/websocket.ts",
     "lint": "next lint"
   },

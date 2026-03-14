@@ -4,7 +4,8 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { watch, readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 
-const PORT = 3001;
+// Read port from environment variable or use default
+const PORT = parseInt(process.env.NEXT_PUBLIC_WS_PORT || process.env.WS_PORT || '3001', 10);
 const OUTPUT_DIR = join(process.cwd(), '..', 'output');
 const STATE_FILE = join(OUTPUT_DIR, 'project-state.json');
 

@@ -86,6 +86,8 @@ npm run dev
 
 The `/build-app` command automatically detects the UI is running and uses it!
 
+**💡 Port 3000 taken?** No problem! See [PORT_CONFIGURATION.md](PORT_CONFIGURATION.md) for using custom ports.
+
 ### ⚡ Alternative: Slash Command Only (No UI)
 
 If you don't want the visual dashboard, just run:

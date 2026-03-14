@@ -14,21 +14,47 @@ echo ""
 if [ -z "$1" ]; then
     echo "❌ Error: Please provide your app idea"
     echo ""
-    echo "Usage: ./start-with-ui.sh \"Your app idea\""
+    echo "Usage: ./start-with-ui.sh \"Your app idea\" [UI_PORT] [WS_PORT]"
     echo "Example: ./start-with-ui.sh \"A todo list app with priorities\""
+    echo "Example: ./start-with-ui.sh \"A blog app\" 3002 3003"
     echo ""
     exit 1
 fi
 
 APP_IDEA="$1"
+UI_PORT="${2:-${NEXT_PUBLIC_UI_PORT:-3000}}"
+WS_PORT="${3:-${NEXT_PUBLIC_WS_PORT:-3001}}"
 
 echo "📋 App Idea: $APP_IDEA"
+echo "🔧 UI Port: $UI_PORT"
+echo "🔧 WebSocket Port: $WS_PORT"
 echo ""
 
-# Check if UI is already running
+# Check if UI is already running on specified port or scan common ports
 echo "🔍 Checking if UI dashboard is running..."
-if curl -s http://localhost:3000 > /dev/null 2>&1; then
-    echo "✅ UI is already running at http://localhost:3000"
+UI_FOUND=false
+DETECTED_PORT=""
+
+# First check specified port
+if curl -s http://localhost:$UI_PORT > /dev/null 2>&1; then
+    UI_FOUND=true
+    DETECTED_PORT=$UI_PORT
+else
+    # Scan common ports (3000-3005)
+    for port in 3000 3001 3002 3003 3004 3005; do
+        if curl -s http://localhost:$port > /dev/null 2>&1; then
+            UI_FOUND=true
+            DETECTED_PORT=$port
+            UI_PORT=$port
+            # Assume WS is next port
+            WS_PORT=$((port + 1))
+            break
+        fi
+    done
+fi
+
+if [ "$UI_FOUND" = true ]; then
+    echo "✅ UI is already running at http://localhost:$DETECTED_PORT"
     echo ""
 else
     echo "⚠️  UI is not running. Starting it now..."
@@ -43,10 +69,10 @@ else
         echo ""
     fi
 
-    # Start UI in background
-    echo "🚀 Starting UI dashboard..."
+    # Start UI in background with custom ports
+    echo "🚀 Starting UI dashboard on port $UI_PORT..."
     cd ui
-    npm run dev > ../ui.log 2>&1 &
+    NEXT_PUBLIC_UI_PORT=$UI_PORT NEXT_PUBLIC_WS_PORT=$WS_PORT npm run dev > ../ui.log 2>&1 &
     UI_PID=$!
     cd ..
 
@@ -54,13 +80,14 @@ else
     sleep 5
 
     # Check if UI started successfully
-    if curl -s http://localhost:3000 > /dev/null 2>&1; then
+    if curl -s http://localhost:$UI_PORT > /dev/null 2>&1; then
         echo "✅ UI started successfully!"
-        echo "📊 Dashboard: http://localhost:3000"
-        echo "🔌 WebSocket: ws://localhost:3001"
+        echo "📊 Dashboard: http://localhost:$UI_PORT"
+        echo "🔌 WebSocket: ws://localhost:$WS_PORT"
         echo ""
     else
-        echo "❌ Failed to start UI. Check ui.log for errors."
+        echo "❌ Failed to start UI on port $UI_PORT. Check ui.log for errors."
+        echo "💡 Tip: Port might be taken. Try: ./start-with-ui.sh \"$APP_IDEA\" 3002 3003"
         exit 1
     fi
 fi
@@ -71,14 +98,14 @@ echo "🤖 Starting Autonomous Build Process"
 echo "═══════════════════════════════════════════════════════════════════════════"
 echo ""
 echo "👀 WATCH THE MAGIC HAPPEN:"
-echo "   Open http://localhost:3000 in your browser!"
+echo "   Open http://localhost:$UI_PORT in your browser!"
 echo ""
 echo "Press Ctrl+C to stop"
 echo ""
 sleep 2
 
-# Run orchestrator
-tsx orchestrate-ui.ts "$APP_IDEA"
+# Run orchestrator with port configuration
+NEXT_PUBLIC_UI_PORT=$UI_PORT NEXT_PUBLIC_WS_PORT=$WS_PORT tsx orchestrate-ui.ts "$APP_IDEA"
 
 echo ""
 echo "═══════════════════════════════════════════════════════════════════════════"

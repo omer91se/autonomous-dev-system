@@ -18,7 +18,8 @@ export default function Home() {
 
   useEffect(() => {
     // Connect to WebSocket server
-    const ws = new WebSocket('ws://localhost:3001');
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001';
+    const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
       console.log('Connected to orchestrator');

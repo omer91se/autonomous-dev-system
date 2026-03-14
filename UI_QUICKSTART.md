@@ -80,6 +80,14 @@ Your decision is sent to the orchestrator automatically!
 ## Troubleshooting
 
 **Port already in use?**
+
+Option 1: Use different ports (recommended)
+```bash
+cd ui
+NEXT_PUBLIC_UI_PORT=3002 NEXT_PUBLIC_WS_PORT=3003 npm run dev
+```
+
+Option 2: Kill the process using the port
 ```bash
 # Kill process on port 3000
 lsof -ti:3000 | xargs kill -9
@@ -87,6 +95,8 @@ lsof -ti:3000 | xargs kill -9
 # Kill process on port 3001
 lsof -ti:3001 | xargs kill -9
 ```
+
+**Need custom ports?** See [PORT_CONFIGURATION.md](../PORT_CONFIGURATION.md) for complete guide.
 
 **Connection failed?**
 - Ensure both dev servers are running (`npm run dev` in ui/)
